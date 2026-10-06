@@ -1405,6 +1405,9 @@
     muteToggle.addEventListener('click', () => {
         const next = !audio.isMuted();
         audio.setMuted(next);
+        if (focusedSprite && focusedSprite.userData.video) {
+            focusedSprite.userData.video.muted = next;
+        }
         muteToggle.classList.toggle('muted', next);
         muteToggle.textContent = next ? 'Sound Off' : 'Sound On';
         try { localStorage.setItem('anmicvisual-muted', next ? '1' : '0'); } catch (e) {}
@@ -1689,6 +1692,7 @@
             video.autoplay = true;
             video.muted = true;
             video.defaultMuted = true;
+            video.volume = 0.5;
             video.playsInline = true;
             video.setAttribute('playsinline', 'true');
             video.setAttribute('webkit-playsinline', 'true');
@@ -2095,6 +2099,8 @@
         if (sprite.userData.video) {
             const video = sprite.userData.video;
             video.loop = true;
+            video.volume = 0.5;
+            video.muted = audio.isMuted();
             video.currentTime = 0;
             video.ontimeupdate = () => {
                 if (
