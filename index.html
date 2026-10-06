@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My 3D Portfolio</title>
+    <style>
+        :root {
+            --accent: #c6ff00;
+            --font-tech: "Bahnschrift", "Segoe UI Variable", "Arial Narrow", sans-serif;
+            --font-code: "Cascadia Code", "Consolas", monospace;
+        }
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            color: #f3f5f6;
+            font-family: var(--font-tech);
+            font-weight: 600;
+        }
+        canvas { display: block; cursor: grab; }
+        canvas.dragging { cursor: grabbing; }
+
+        #liquid-overlay {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        #hint {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #879198;
+            font-family: var(--font-code);
+            font-weight: 700;
+            font-size: 13px;
+            letter-spacing: 0;
+            pointer-events: none;
+            user-select: none;
+            text-align: center;
+            line-height: 1.6;
+            transition: opacity 0.4s ease;
+        }
+        #hint span { color: var(--accent); }
+        #hint.hidden { opacity: 0; }
+
+        #topic-home {
+            position: fixed;
+            inset: 0;
+            z-index: 6;
+            display: grid;
+            grid-template-rows: auto 1fr auto auto;
+            padding: 30px clamp(28px, 5vw, 76px) 26px;
+            box-sizing: border-box;
+            color: #f3f5f6;
+            background: linear-gradient(180deg, rgba(4, 7, 10, 0.42), rgba(4, 7, 10, 0.12) 58%, rgba(4, 7, 10, 0.88));
+        }
+        #topic-home[hidden] { display: none; }
+        .topic-topline, .topic-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            color: #879198;
+            font: 700 11px/1.4 var(--font-code);
+            letter-spacing: 0;
+            text-transform: uppercase;
+        }
+        .topic-brand { color: #f3f5f6; font-weight: 800; }
+        .topic-hero { align-self: center; margin: 35px 0 46px; }
+        .topic-kicker {
+            margin: 0 0 18px;
+            color: var(--accent);
+            font: 700 11px/1.4 var(--font-code);
+            letter-spacing: 0;
+            text-transform: uppercase;
+        }
+        .topic-hero h1 {
+            max-width: 760px;
+            margin: 0;
+            font: 800 64px/0.98 var(--font-tech);
+        }
+        .topic-hero h1 em { color: var(--accent); font-weight: 800; }
+        .topic-intro {
+            max-width: 420px;
+            margin: 18px 0 0;
+            color: #adb7bd;
+            font: 500 15px/1.65 var(--font-tech);
+        }
+        .topic-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+        .topic-choice {
+            --topic-accent: var(--accent);
+            position: relative;
+            display: flex;
+            min-width: 0;
+            min-height: 188px;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 18px 20px 12px;
+            border: 0;
+            background: transparent;
+            color: inherit;
+            text-align: left;
+            cursor: pointer;
+            transition: background 0.25s ease, color 0.25s ease;
+        }
+        .topic-choice + .topic-choice { border-left: 1px solid rgba(220, 238, 242, 0.18); }
+        .topic-choice:hover, .topic-choice:focus-visible {
+            outline: none;
+            background: rgba(255, 255, 255, 0.055);
+        }
+        .topic-choice[data-topic="contact"],
+        .topic-choice[data-topic="upcoming"],
+        .topic-choice[data-topic="about"] { --topic-accent: var(--accent); }
+        .topic-number {
+            color: var(--topic-accent);
+            font: 700 11px/1.4 var(--font-code);
+            letter-spacing: 0;
+        }
+        .topic-name {
+            display: block;
+            margin-top: auto;
+            font: 700 30px/1 var(--font-tech);
+        }
+        .topic-description {
+            display: flex;
+            align-items: end;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 12px;
+            color: #8e989f;
+            font: 600 12px/1.4 var(--font-tech);
+        }
+        .topic-arrow { color: var(--topic-accent); font-size: 18px; }
+
+        #layer-back {
+            position: fixed;
+            top: 24px;
+            left: 28px;
+            z-index: 12;
+            border: 0;
+            padding: 10px 0;
+            background: transparent;
+            color: #e8edf0;
+            font: 700 12px/1.4 var(--font-code);
+            letter-spacing: 0;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+        #layer-back:hover { color: var(--accent); }
+        #layer-back[hidden] { display: none; }
+
+        /* ---------- Text panel ---------- */
+        #text-panel {
+            position: fixed;
+            top: 50%;
+            right: 0;
+            width: 38.2vw;
+            height: auto;
+            max-height: calc(100vh - 48px);
+            background: linear-gradient(
+                to left,
+                rgba(8, 8, 14, 0.96) 0%,
+                rgba(8, 8, 14, 0.92) 70%,
+                rgba(8, 8, 14, 0.00) 100%
+            );
+            color: #e8e8ec;
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: clamp(28px, 4vh, 54px) clamp(20px, 3vw, 46px);
+            box-sizing: border-box;
+            overflow-y: auto;
+            transform: translate(100%, -50%);
+            transition: transform 0.65s cubic-bezier(0.22, 0.61, 0.36, 1);
+            pointer-events: none;
+            z-index: 10;
+        }
+        #text-panel.open {
+            transform: translate(0, -50%);
+            pointer-events: auto;
+        }
+        #text-panel::-webkit-scrollbar { width: 6px; }
+        #text-panel::-webkit-scrollbar-thumb {
+            background: rgba(198, 255, 0, 0.32);
+            border-radius: 3px;
+        }
+
+        #close-btn {
+            position: absolute;
+            top: 26px;
+            right: 32px;
+            width: 38px;
+            height: 38px;
+            border: 1px solid rgba(198, 255, 0, 0.42);
+            border-radius: 50%;
+            background: transparent;
+            color: var(--accent);
+            font-size: 22px;
+            line-height: 1;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+        #close-btn:hover {
+            border-color: var(--accent);
+            background: rgba(198, 255, 0, 0.12);
+            color: #fff;
+        }
+
+        #text-title {
+            font-size: 32px;
+            font-family: var(--font-tech);
+            font-weight: 800;
+            letter-spacing: 0;
+            margin: 0 0 8px 0;
+            color: #fff;
+            text-transform: capitalize;
+        }
+
+        #text-underline {
+            width: 60px;
+            height: 2px;
+            background: linear-gradient(
+                to right,
+                var(--accent),
+                rgba(198, 255, 0, 0)
+            );
+            margin-bottom: 30px;
+        }
+
+        #text-content {
+            font-family: var(--font-tech);
+            font-size: 15px;
+            line-height: 1.8;
+            font-weight: 500;
+            color: #b8bcc8;
+            white-space: pre-wrap;
+            opacity: 0;
+            transition: opacity 0.5s ease 0.15s;
+        }
+        #text-content.loaded { opacity: 1; }
+
+        #text-link {
+            display: inline-block;
+            margin-top: 40px;
+            color: var(--accent);
+            text-decoration: none;
+            font-family: var(--font-code);
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0;
+            text-transform: uppercase;
+            border-bottom: 1px solid rgba(198, 255, 0, 0.45);
+            padding-bottom: 3px;
+            transition: all 0.25s ease;
+        }
+        #text-link[hidden] { display: none; }
+        #text-link:hover {
+            color: #fff;
+            border-bottom-color: #fff;
+        }
+
+        @media (max-width: 700px) {
+            #topic-home {
+                grid-template-rows: auto 1fr auto auto;
+                padding: 20px 18px 16px;
+                overflow-y: auto;
+            }
+            .topic-topline, .topic-footer { font-size: 9px; letter-spacing: 0; }
+            .topic-hero { align-self: start; margin: 48px 0 34px; }
+            .topic-kicker { margin-bottom: 14px; }
+            .topic-hero h1 { font-size: 42px; }
+            .topic-intro { max-width: 340px; font-size: 14px; }
+            .topic-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .topic-choice {
+                min-height: 142px;
+                padding: 14px 12px 12px;
+                border-left: 0;
+            }
+            .topic-choice:nth-child(even) { border-left: 1px solid rgba(220, 238, 242, 0.18); }
+            .topic-choice:nth-child(-n+2) { border-bottom: 1px solid rgba(220, 238, 242, 0.18); }
+            .topic-name { font-size: 25px; }
+            .topic-description { font-size: 11px; }
+            #layer-back { top: 8px; left: 18px; }
+            #text-panel {
+                top: auto;
+                bottom: 0;
+                right: 0;
+                width: 100%;
+                height: auto;
+                max-height: min(48vh, 380px);
+                padding: 54px 24px 28px;
+                background: linear-gradient(
+                    to top,
+                    rgba(8, 8, 14, 0.98) 0%,
+                    rgba(8, 8, 14, 0.94) 78%,
+                    rgba(8, 8, 14, 0.00) 100%
+                );
+                transform: translateY(100%);
+            }
+            #text-panel.open { transform: translateY(0); }
+            #close-btn { top: 14px; right: 18px; }
+            #text-title { font-size: 25px; }
+            #text-underline { margin-bottom: 16px; }
+            #text-content { font-size: 14px; line-height: 1.6; }
+            #text-link { margin-top: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="scene"></canvas>
+    <canvas id="liquid-overlay" aria-hidden="true"></canvas>
+    <main id="topic-home">
+        <div class="topic-topline">
+            <span class="topic-brand">Anmicvisual</span>
+            <span>Image / Motion / Digital Space</span>
+        </div>
+        <section class="topic-hero">
+            <p class="topic-kicker">A visual practice in motion</p>
+            <h1>Make room<br>for <em>the unexpected.</em></h1>
+            <p class="topic-intro">Moving image, visual experiments, and the projects taking shape around them.</p>
+        </section>
+        <nav class="topic-grid" aria-label="Portfolio topics">
+            <button class="topic-choice" type="button" data-topic="projects">
+                <span class="topic-number">01 / ARCHIVE</span>
+                <span class="topic-name">Projects</span>
+                <span class="topic-description">Selected work <span class="topic-arrow">↗</span></span>
+            </button>
+            <button class="topic-choice" type="button" data-topic="contact">
+                <span class="topic-number">02 / OPEN LINE</span>
+                <span class="topic-name">Contact</span>
+                <span class="topic-description">Start a conversation <span class="topic-arrow">↗</span></span>
+            </button>
+            <button class="topic-choice" type="button" data-topic="upcoming">
+                <span class="topic-number">03 / IN PROGRESS</span>
+                <span class="topic-name">Upcoming</span>
+                <span class="topic-description">What’s taking shape <span class="topic-arrow">↗</span></span>
+            </button>
+            <button class="topic-choice" type="button" data-topic="about">
+                <span class="topic-number">04 / CONTEXT</span>
+                <span class="topic-name">About</span>
+                <span class="topic-description">The practice behind it <span class="topic-arrow">↗</span></span>
+            </button>
+        </nav>
+        <footer class="topic-footer">
+            <span>Independent visual practice</span>
+            <span>Explore the index</span>
+        </footer>
+    </main>
+    <button id="layer-back" type="button" hidden>← All topics</button>
+    <div id="hint" class="hidden">
+        <span>DRAG</span> TO ROTATE &nbsp;·&nbsp; <span>SCROLL</span> TO ZOOM<br>
+        CLICK A PROJECT TO OPEN IT
+    </div>
+
+    <!-- The sliding text panel -->
+    <div id="text-panel">
+        <button id="close-btn" aria-label="Close">×</button>
+        <h1 id="text-title"></h1>
+        <div id="text-underline"></div>
+        <div id="text-content"></div>
+        <a id="text-link" href="#" target="_blank">Open project →</a>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.185.0/build/three.module.js"
+        }
+    }
+    </script>
+
+    <script type="module">
+    import * as THREE from 'three';
+
+    /* ==========================================================
+       1. SCENE, CAMERA, RENDERER
+       ========================================================== */
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
+
+    const camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+    );
+    camera.position.set(0, 0, 0);
+    camera.lookAt(0, 0, -1);
+
+    const canvas = document.querySelector('#scene');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    const liquidCanvas = document.querySelector('#liquid-overlay');
+    const liquidContext = liquidCanvas.getContext('2d');
+    const liquidPointer = { x: 0, y: 0, active: false };
+    const liquidParticles = Array.from({ length: 42 }, (_, i) => ({
+        x: 0, y: 0, vx: 0, vy: 0,
+        angle: (i / 42) * Math.PI * 2,
+        phase: Math.random() * Math.PI * 2,
+        size: 1.2 + Math.random() * 2.2,
+        initialized: false
+    }));
+
+    function resizeLiquidCanvas() {
+        const ratio = Math.min(window.devicePixelRatio || 1, 2);
+        liquidCanvas.width = Math.round(window.innerWidth * ratio);
+        liquidCanvas.height = Math.round(window.innerHeight * ratio);
+        liquidContext.setTransform(ratio, 0, 0, ratio, 0, 0);
+    }
+
+    resizeLiquidCanvas();
+
+
+    /* Add or edit each project's title and description here. */
+    const projects = [
+        { title: 'Project 1', media: 'images/project1.jpg', description: 'In a world full of water and air we add elemnts of displace and distruction.', link: '' },
+        { title: 'Project 2', media: 'images/project2.jpg', description: 'Add a description of Project 2 here. Explain what you created, the tools you used, and the result.', link: '' },
+        { title: 'Project 3', media: 'images/project3.png', description: 'Add a description of Project 3 here. Explain what you created, the tools you used, and the result.', link: '' },
+        { title: 'Project 4', media: 'images/project4.jpg', description: 'Add a description of Project 4 here. Explain what you created, the tools you used, and the result.', link: '' },
+        { title: 'Project 5', media: 'images/project5.png', description: 'Add a description of Project 5 here. Explain what you created, the tools you used, and the result.', link: '' },
+        { title: 'Project 6', media: 'images/project6.png', description: 'Add a description of Project 6 here. Explain what you created, the tools you used, and the result.', link: '' },
+        { title: 'Project 7', media: 'images/project7.png', description: 'Add a description of Project 7 here. Explain what you created, the tools you used, and the result.', link: '' },
+        { title: 'Video Project 1', media: 'videos/project1.mp4', description: 'Add a description of this video project here. Explain what it shows and how you made it.', link: '' },
+        { title: 'Video Project 2', media: 'videos/project2.mov', description: 'Add a description of this video project here. Explain what it shows and how you made it.', link: '' },
+        { title: 'Video Project 3', media: 'videos/project3.mp4', description: 'Add a description of this video project here. Explain what it shows and how you made it.', link: '' },
+        { title: 'Video Project 4', media: 'videos/project4 .mp4', description: 'Add a description of this video project here. Explain what it shows and how you made it.', link: '' },
+        { title: 'Video Project 5', media: 'videos/project5.mp4', description: 'Add a description of this video project here. Explain what it shows and how you made it.', link: '' },
+        { title: 'Video Project 6', media: 'videos/project6.mp4', description: 'Add a description of this video project here. Explain what it shows and how you made it.', link: '' },
+    ];
+
+    const SPHERE_RADIUS = 35;
+    const BASE_SIZE     = 12;
+    const VIDEO_LOOP_LIMIT = 30;
+
+
+    /* ==========================================================
+       3. MEDIA LOADER
+       ========================================================== */
+
+    const textureLoader = new THREE.TextureLoader();
+    const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mov', '.m4v', '.ogg'];
+
+    function isVideoFile(path) {
+        const lower = path.toLowerCase();
+        return VIDEO_EXTENSIONS.some(ext => lower.endsWith(ext));
+    }
+
+    function loadMedia(path, onReady) {
+        if (isVideoFile(path)) {
+            const video = document.createElement('video');
+            video.loop = true;
+            video.muted = true;
+            video.playsInline = true;
+            video.crossOrigin = 'anonymous';
+            video.preload = 'metadata';
+            video.dataset.source = path;
+            video.src = path;
+
+            video.style.position = 'absolute';
+            video.style.width = '1px';
+            video.style.height = '1px';
+            video.style.opacity = '0';
+            video.style.pointerEvents = 'none';
+            document.body.appendChild(video);
+
+            const texture = new THREE.VideoTexture(video);
+            texture.colorSpace = THREE.SRGBColorSpace;
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            texture.userData.videoElement = video;
+
+            video.addEventListener('seeked', () => { texture.needsUpdate = true; });
+            video.addEventListener('loadedmetadata', () => {
+                onReady(texture, video.videoWidth / video.videoHeight);
+                if (video.duration > 0) video.currentTime = Math.min(0.1, video.duration / 2);
+            });
+
+            return texture;
+        }
+
+        const texture = textureLoader.load(path, (tex) => {
+            tex.colorSpace = THREE.SRGBColorSpace;
+            onReady(tex, tex.image.width / tex.image.height);
+        });
+
+        return texture;
+    }
+
+
+    /* ==========================================================
+       4. PULSATING BORDER TEXTURE
+       ========================================================== */
+
+    function makeBorderTexture() {
+        const size = 512;
+        const c = document.createElement('canvas');
+        c.width = c.height = size;
+        const ctx = c.getContext('2d');
+        ctx.clearRect(0, 0, size, size);
+
+        const inset = Math.round(size * 0.15);
+        const x = inset, y = inset;
+        const w = size - inset * 2;
+        const h = size - inset * 2;
+
+        ctx.filter = 'blur(20px)';
+        ctx.strokeStyle = 'rgba(198, 255, 0, 0.55)';
+        ctx.lineWidth = 18;
+        ctx.strokeRect(x, y, w, h);
+
+        ctx.filter = 'blur(8px)';
+        ctx.strokeStyle = 'rgba(198, 255, 0, 0.85)';
+        ctx.lineWidth = 8;
+        ctx.strokeRect(x, y, w, h);
+
+        ctx.filter = 'blur(2px)';
+        ctx.strokeStyle = 'rgba(235, 255, 180, 1.0)';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x, y, w, h);
+
+        ctx.filter = 'none';
+
+        const tex = new THREE.CanvasTexture(c);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        return tex;
+    }
+
+    const BORDER_TEXTURE = makeBorderTexture();
+    const BORDER_SCALE   = 1 / 0.7;
+
+    const cloud = new THREE.Group();
+    scene.add(cloud);
+    cloud.visible = false;
+
+    const sprites = [];
+    const glows   = [];
+    const count   = projects.length;
+
+    projects.forEach((project, i) => {
+        const y     = count > 1 ? 1 - (i / (count - 1)) * 2 : 0;
+        const ringR = Math.sqrt(Math.max(0, 1 - y * y));
+        const theta = i * 2.399963229728653;
+        const x = Math.cos(theta) * ringR;
+        const z = Math.sin(theta) * ringR;
+
+        const material = new THREE.SpriteMaterial({
+            transparent: true,
+            depthWrite: false,
+            depthTest: false,
+            opacity: 1,
+        });
+
+        const sprite = new THREE.Sprite(material);
+        sprite.position.set(x * SPHERE_RADIUS, y * SPHERE_RADIUS, z * SPHERE_RADIUS);
+        sprite.scale.set(BASE_SIZE, BASE_SIZE, 1);
+        sprite.renderOrder = 3;
+
+        sprite.userData.link          = project.link;
+        sprite.userData.baseScaleX    = BASE_SIZE;
+        sprite.userData.baseScaleY    = BASE_SIZE;
+        sprite.userData.segments      = [];
+        sprite.userData.glowFade      = 0;
+        sprite.userData.targetOpacity = 1;
+        sprite.userData.home          = sprite.position.clone();
+        sprite.userData.title         = project.title;
+        sprite.userData.description   = project.description;
+
+        cloud.add(sprite);
+        sprites.push(sprite);
+
+        /* ---------- pulsating border ---------- */
+        const borderMat = new THREE.SpriteMaterial({
+            map: BORDER_TEXTURE,
+            transparent: true,
+            opacity: 0,
+            depthWrite: false,
+            depthTest: false,
+            blending: THREE.AdditiveBlending,
+        });
+        const glow = new THREE.Sprite(borderMat);
+        glow.position.copy(sprite.position);
+        glow.scale.set(BASE_SIZE * BORDER_SCALE, BASE_SIZE * BORDER_SCALE, 1);
+        glow.renderOrder = 2;
+
+        cloud.add(glow);
+        glows.push({ glow, sprite });
+
+        /* ---------- load media ---------- */
+        const texture = loadMedia(project.media, (tex, aspect) => {
+            material.map = tex;
+            material.needsUpdate = true;
+
+            const w = BASE_SIZE * aspect;
+            const h = BASE_SIZE;
+            sprite.scale.set(w, h, 1);
+            sprite.userData.baseScaleX = w;
+            sprite.userData.baseScaleY = h;
+
+            glow.scale.set(w * BORDER_SCALE, h * BORDER_SCALE, 1);
+            if (focusedSprite === sprite) {
+                const focusedHeight = sprite.scale.y;
+                sprite.scale.set(focusedHeight * aspect, focusedHeight, 1);
+                computeFocusTargets(sprite);
+            }
+        });
+
+        sprite.userData.video = texture.userData.videoElement || null;
+        material.map = texture;
+        material.needsUpdate = true;
+    });
+
+
+    /* ==========================================================
+       6. CONNECTING LINES
+       ========================================================== */
+
+    const NEIGHBORS = 2;
+    const linePositions = [];
+    const segments      = [];
+
+    for (let i = 0; i < sprites.length; i++) {
+        const a = sprites[i].position;
+        const ranked = [];
+        for (let j = 0; j < sprites.length; j++) {
+            if (i === j) continue;
+            ranked.push({ j, d: a.distanceTo(sprites[j].position) });
+        }
+        ranked.sort((p, q) => p.d - q.d);
+
+        for (let k = 0; k < NEIGHBORS && k < ranked.length; k++) {
+            const j = ranked[k].j;
+            if (i < j) {
+                const b = sprites[j].position;
+                const vertexStart = linePositions.length / 3;
+                linePositions.push(a.x, a.y, a.z, b.x, b.y, b.z);
+
+                const segIndex = segments.length;
+                segments.push({ i, j, vertexStart });
+
+                sprites[i].userData.segments.push({ segIndex, isFirst: true  });
+                sprites[j].userData.segments.push({ segIndex, isFirst: false });
+            }
+        }
+    }
+
+    const lineGeometry = new THREE.BufferGeometry();
+    lineGeometry.setAttribute(
+        'position',
+        new THREE.Float32BufferAttribute(linePositions, 3)
+    );
+
+    const vertexCount  = linePositions.length / 3;
+    const colorArray   = new Float32Array(vertexCount * 3);
+    const targetColors = new Float32Array(vertexCount * 3);
+
+    lineGeometry.setAttribute('color', new THREE.BufferAttribute(colorArray, 3));
+
+    const lineMaterial = new THREE.LineBasicMaterial({
+        vertexColors: true,
+        transparent: true,
+        opacity: 1,
+        depthWrite: false,
+        depthTest: false,
+        blending: THREE.AdditiveBlending,
+    });
+
+    const lines = new THREE.LineSegments(lineGeometry, lineMaterial);
+    lines.renderOrder = 2;
+    cloud.add(lines);
+
+    const BASE   = new THREE.Color(0.05, 0.05, 0.08);
+    const BRIGHT = new THREE.Color(0.776, 1.00, 0.00);
+    const FADE   = new THREE.Color(0.18, 0.22, 0.02);
+
+    for (let v = 0; v < vertexCount; v++) {
+        colorArray[v * 3]     = BASE.r;
+        colorArray[v * 3 + 1] = BASE.g;
+        colorArray[v * 3 + 2] = BASE.b;
+        targetColors[v * 3]     = BASE.r;
+        targetColors[v * 3 + 1] = BASE.g;
+        targetColors[v * 3 + 2] = BASE.b;
+    }
+
+    function updateLineTargets() {
+        for (let v = 0; v < vertexCount; v++) {
+            targetColors[v * 3]     = BASE.r;
+            targetColors[v * 3 + 1] = BASE.g;
+            targetColors[v * 3 + 2] = BASE.b;
+        }
+        if (!hoveredSprite) return;
+
+        for (const { segIndex, isFirst } of hoveredSprite.userData.segments) {
+            const seg = segments[segIndex];
+            const nearV = isFirst ? seg.vertexStart     : seg.vertexStart + 1;
+            const farV  = isFirst ? seg.vertexStart + 1 : seg.vertexStart;
+
+            targetColors[nearV * 3]     = BRIGHT.r;
+            targetColors[nearV * 3 + 1] = BRIGHT.g;
+            targetColors[nearV * 3 + 2] = BRIGHT.b;
+
+            targetColors[farV * 3]     = FADE.r;
+            targetColors[farV * 3 + 1] = FADE.g;
+            targetColors[farV * 3 + 2] = FADE.b;
+        }
+    }
+
+
+    /* ==========================================================
+       7. FOCUS STATE
+       ----------------------------------------------------------
+       idle      → normal sphere, hover/drag active
+       focused   → one sprite flying to the left of the screen,
+                   everything else fading out, text panel open
+       returning → the sprite animating back home, panel closing
+       ========================================================== */
+
+    let activeLayer     = 'topics';
+    let focusState      = 'idle';
+    let focusedSprite   = null;
+    let focusTargetPos  = new THREE.Vector3();
+    let focusTargetScale= new THREE.Vector3();
+    let returnTargetPos = new THREE.Vector3();
+    let returnTargetScale = new THREE.Vector3();
+    const focusBackdrop = new THREE.Mesh(
+        new THREE.PlaneGeometry(1, 1),
+        new THREE.ShaderMaterial({
+            uniforms: {
+                uMap: { value: null },
+                uTexelSize: { value: new THREE.Vector2(1 / 1920, 1 / 1080) }
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform sampler2D uMap;
+                uniform vec2 uTexelSize;
+                varying vec2 vUv;
+
+                float luminance(vec2 offset) {
+                    vec3 color = texture2D(uMap, vUv + offset * uTexelSize).rgb;
+                    return dot(color, vec3(0.299, 0.587, 0.114));
+                }
+
+                void main() {
+                    float top = luminance(vec2(0.0, 3.0));
+                    float left = luminance(vec2(-3.0, 0.0));
+                    float right = luminance(vec2(3.0, 0.0));
+                    float bottom = luminance(vec2(0.0, -3.0));
+                    float edgeX = right - left;
+                    float edgeY = top - bottom;
+                    float edge = smoothstep(0.035, 0.16, length(vec2(edgeX, edgeY)));
+                    vec3 background = vec3(0.012, 0.016, 0.022);
+                    gl_FragColor = vec4(mix(background, vec3(1.0), edge), 1.0);
+                }
+            `,
+            depthWrite: false,
+            depthTest: false
+        })
+    );
+    focusBackdrop.renderOrder = 9;
+
+    function computeFocusTargets(sprite) {
+        // Distance in front of the camera to place the focused image
+        const distance = 40;
+
+        const vFov          = camera.fov * Math.PI / 180;
+        const visibleHeight = 2 * Math.tan(vFov / 2) * distance;
+        const visibleWidth  = visibleHeight * camera.aspect;
+
+        const aspect = sprite.userData.baseScaleX / sprite.userData.baseScaleY;
+        const isVideo = Boolean(sprite.userData.video);
+        const h = isVideo
+            ? Math.min(visibleHeight, visibleWidth / aspect)
+            : Math.max(visibleHeight, visibleWidth / aspect);
+        const w = h * aspect;
+        const z = camera.position.z - distance;
+
+        focusTargetPos.set(0, 0, z);
+        focusTargetScale.set(w, h, 1);
+
+        if (isVideo) {
+            const backdropHeight = Math.max(visibleHeight, visibleWidth / aspect);
+            focusBackdrop.position.copy(focusTargetPos);
+            focusBackdrop.scale.set(backdropHeight * aspect, backdropHeight, 1);
+        }
+    }
+
+    function focusProject(sprite) {
+        if (focusState !== 'idle') return;
+        layerBack.hidden = true;
+
+        sprites.forEach((item) => {
+            if (item !== sprite && item.userData.video) item.userData.video.pause();
+        });
+
+        focusedSprite = sprite;
+        focusState    = 'focused';
+
+        if (sprite.userData.video) {
+            const video = sprite.userData.video;
+            if (!video.hasAttribute('src')) video.src = video.dataset.source;
+            video.loop = true;
+            video.currentTime = 0;
+            video.ontimeupdate = () => {
+                if (
+                    focusedSprite === sprite &&
+                    focusState === 'focused' &&
+                    video.duration > VIDEO_LOOP_LIMIT &&
+                    video.currentTime >= VIDEO_LOOP_LIMIT
+                ) {
+                    video.currentTime = 0;
+                }
+            };
+            video.play().catch(() => {});
+        }
+
+        computeFocusTargets(sprite);
+
+        if (sprite.userData.video) {
+            const video = sprite.userData.video;
+            focusBackdrop.material.uniforms.uMap.value = sprite.material.map;
+            focusBackdrop.material.uniforms.uTexelSize.value.set(
+                video.videoWidth ? 1 / video.videoWidth : 1 / 1920,
+                video.videoHeight ? 1 / video.videoHeight : 1 / 1080
+            );
+            scene.add(focusBackdrop);
+        }
+
+        // Move the sprite out of the rotating cloud so it can fly freely
+        scene.attach(sprite);
+        sprite.renderOrder = 10;
+
+        // Fade everything else out
+        sprites.forEach(s => {
+            s.userData.targetOpacity = (s === sprite) ? 1 : 0;
+        });
+        lineMaterial.userData = lineMaterial.userData || {};
+        lineMaterial.userData.targetOpacity = 0;
+
+        // Open the panel with this project's text
+        openTextPanel(sprite);
+
+        // Hide the hint
+        document.getElementById('hint').classList.add('hidden');
+    }
+
+    function unfocusProject() {
+        if (focusState !== 'focused') return;
+        if (focusedSprite.userData.video) focusedSprite.userData.video.pause();
+        focusState = 'returning';
+        scene.remove(focusBackdrop);
+
+        // Where the sprite should land: its home position in world space
+        const homeWorld = focusedSprite.userData.home.clone();
+        homeWorld.applyQuaternion(cloud.quaternion);
+
+        returnTargetPos.copy(homeWorld);
+        returnTargetScale.set(
+            focusedSprite.userData.baseScaleX,
+            focusedSprite.userData.baseScaleY,
+            1
+        );
+
+        // Fade everything back in
+        sprites.forEach(s => { s.userData.targetOpacity = 1; });
+        lineMaterial.userData.targetOpacity = 1;
+
+        closeTextPanel();
+        document.getElementById('hint').classList.remove('hidden');
+    }
+
+
+    /* ==========================================================
+       8. TEXT PANEL
+       ========================================================== */
+
+    const textPanel   = document.getElementById('text-panel');
+    const textTitle   = document.getElementById('text-title');
+    const textContent = document.getElementById('text-content');
+    const textLink    = document.getElementById('text-link');
+    const topicHome   = document.getElementById('topic-home');
+    const layerBack   = document.getElementById('layer-back');
+
+    const TOPIC_PAGES = {
+        contact: {
+            title: 'Contact',
+            content: 'For project enquiries, collaborations, or questions, start a message and tell me what you have in mind.',
+            link: 'mailto:?subject=Anmicvisual%20enquiry',
+            linkText: 'Start an email'
+        },
+        upcoming: {
+            title: 'Upcoming',
+            content: 'The next set of work is taking shape. New visual experiments and moving-image projects will appear here as they’re ready.'
+        },
+        about: {
+            title: 'About',
+            content: 'Anmicvisual is an independent visual practice working across moving image, projection, generative visuals, and interactive experiences.'
+        }
+    };
+
+    function openTextPanel(sprite) {
+        textTitle.textContent   = sprite.userData.title;
+        textContent.textContent = sprite.userData.description;
+        textContent.classList.add('loaded');
+        textLink.hidden = !sprite.userData.link;
+        textLink.textContent = 'Open project →';
+        if (sprite.userData.link) textLink.href = sprite.userData.link;
+
+        textPanel.classList.add('open');
+    }
+
+    function openTopicPage(topic) {
+        const page = TOPIC_PAGES[topic];
+        if (!page) return;
+
+        activeLayer = 'topic-detail';
+        topicHome.hidden = true;
+        cloud.visible = false;
+        layerBack.hidden = false;
+        document.getElementById('hint').classList.add('hidden');
+
+        textTitle.textContent = page.title;
+        textContent.textContent = page.content;
+        textContent.classList.add('loaded');
+        textLink.hidden = !page.link;
+        textLink.textContent = page.linkText || '';
+        if (page.link) textLink.href = page.link;
+        textPanel.classList.add('open');
+    }
+
+    function returnToTopics() {
+        if (focusState !== 'idle') return;
+        if (activeLayer === 'topic-detail') closeTextPanel();
+        activeLayer = 'topics';
+        cloud.visible = false;
+        topicHome.hidden = false;
+        layerBack.hidden = true;
+        document.getElementById('hint').classList.add('hidden');
+    }
+
+    document.querySelectorAll('.topic-choice').forEach((choice) => {
+        choice.addEventListener('click', () => {
+            const topic = choice.dataset.topic;
+            if (topic === 'projects') {
+                activeLayer = 'projects';
+                topicHome.hidden = true;
+                cloud.visible = true;
+                layerBack.hidden = false;
+                document.getElementById('hint').classList.remove('hidden');
+                return;
+            }
+            openTopicPage(topic);
+        });
+    });
+
+    layerBack.addEventListener('click', returnToTopics);
+
+    function closeTextPanel() {
+        textPanel.classList.remove('open');
+        textContent.classList.remove('loaded');
+    }
+
+    document.getElementById('close-btn').addEventListener('click', () => {
+        if (focusState === 'focused') {
+            unfocusProject();
+        } else if (activeLayer === 'topic-detail') {
+            returnToTopics();
+        }
+    });
+
+    window.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if (focusState === 'focused') unfocusProject();
+        else if (activeLayer === 'topic-detail') returnToTopics();
+    });
+
+
+    /* ==========================================================
+       9. DRAG-TO-ROTATE
+       ========================================================== */
+
+    const targetQuat = new THREE.Quaternion();
+    const AXIS_X = new THREE.Vector3(1, 0, 0);
+    const AXIS_Y = new THREE.Vector3(0, 1, 0);
+
+    let isDragging = false;
+    let prevX = 0, prevY = 0;
+    let downX = 0, downY = 0;
+    let velX = 0, velY = 0;
+
+    const DRAG_SENSITIVITY = 0.006;
+    const MOMENTUM         = 0.94;
+    const GLIDE_SMOOTHING  = 0.12;
+
+    function applyRotDelta(dx, dy) {
+        const qx = new THREE.Quaternion().setFromAxisAngle(AXIS_X, dy * DRAG_SENSITIVITY);
+        const qy = new THREE.Quaternion().setFromAxisAngle(AXIS_Y, dx * DRAG_SENSITIVITY);
+        targetQuat.premultiply(qy).premultiply(qx);
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+        if (activeLayer !== 'projects' || focusState !== 'idle') return;
+        isDragging = true;
+        prevX = e.clientX; prevY = e.clientY;
+        velX = velY = 0;
+        canvas.classList.add('dragging');
+    });
+
+    window.addEventListener('mouseup', () => {
+        isDragging = false;
+        canvas.classList.remove('dragging');
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - prevX;
+        const dy = e.clientY - prevY;
+        prevX = e.clientX; prevY = e.clientY;
+        applyRotDelta(dx, dy);
+        velX = dx * DRAG_SENSITIVITY;
+        velY = dy * DRAG_SENSITIVITY;
+    });
+
+    canvas.addEventListener('touchstart', (e) => {
+        if (activeLayer !== 'projects' || focusState !== 'idle') return;
+        const t = e.touches[0];
+        isDragging = true;
+        prevX = t.clientX; prevY = t.clientY;
+        downX = t.clientX; downY = t.clientY;
+        velX = velY = 0;
+        canvas.classList.add('dragging');
+    }, { passive: true });
+
+    window.addEventListener('touchend', () => {
+        isDragging = false;
+        canvas.classList.remove('dragging');
+    });
+
+    window.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        const t = e.touches[0];
+        const dx = t.clientX - prevX;
+        const dy = t.clientY - prevY;
+        prevX = t.clientX; prevY = t.clientY;
+        applyRotDelta(dx, dy);
+        velX = dx * DRAG_SENSITIVITY;
+        velY = dy * DRAG_SENSITIVITY;
+    }, { passive: true });
+
+
+    /* ==========================================================
+       10. ZOOM
+       ========================================================== */
+
+    let targetZoomZ = 0;
+    const ZOOM_MIN = 0;
+    const ZOOM_MAX = 90;
+
+    window.addEventListener('wheel', (e) => {
+        if (activeLayer !== 'projects' || focusState !== 'idle') return;
+        targetZoomZ += e.deltaY * 0.08;
+        targetZoomZ = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, targetZoomZ));
+    }, { passive: true });
+
+
+    /* ==========================================================
+       11. HOVER / CLICK
+       ========================================================== */
+
+    const raycaster = new THREE.Raycaster();
+    const pointer   = new THREE.Vector2(0, 0);
+    let hoveredSprite = null;
+
+    window.addEventListener('mousemove', (e) => {
+        pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+        pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        liquidPointer.x = e.clientX;
+        liquidPointer.y = e.clientY;
+        liquidPointer.active = true;
+    });
+
+    window.addEventListener('blur', () => { liquidPointer.active = false; });
+
+    function getSpriteScreenBounds(sprite) {
+        scene.updateMatrixWorld();
+        camera.updateMatrixWorld();
+        const worldPosition = sprite.getWorldPosition(new THREE.Vector3());
+        const viewPosition = worldPosition.clone().applyMatrix4(camera.matrixWorldInverse);
+        const depth = -viewPosition.z;
+        if (depth <= 0) return null;
+
+        const projected = worldPosition.project(camera);
+        const height = sprite.scale.y * window.innerHeight /
+            (2 * Math.tan(camera.fov * Math.PI / 360) * depth);
+        return {
+            x: (projected.x * 0.5 + 0.5) * window.innerWidth,
+            y: (-projected.y * 0.5 + 0.5) * window.innerHeight,
+            width: height * (sprite.scale.x / sprite.scale.y),
+            height
+        };
+    }
+
+    function drawLiquidPool(x, y, radius, opacity) {
+        const gradient = liquidContext.createRadialGradient(x, y, 0, x, y, radius);
+        gradient.addColorStop(0, 'rgba(198, 255, 0, ' + opacity + ')');
+        gradient.addColorStop(0.42, 'rgba(150, 210, 0, ' + (opacity * 0.42) + ')');
+        gradient.addColorStop(1, 'rgba(110, 160, 0, 0)');
+        liquidContext.fillStyle = gradient;
+        liquidContext.beginPath();
+        liquidContext.arc(x, y, radius, 0, Math.PI * 2);
+        liquidContext.fill();
+    }
+
+    function updateLiquid(elapsed) {
+        liquidContext.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        if (activeLayer !== 'projects' || !liquidPointer.active || focusState !== 'idle') return;
+
+        const target = hoveredSprite ? getSpriteScreenBounds(hoveredSprite) : null;
+        const centerX = target ? target.x : liquidPointer.x;
+        const centerY = target ? target.y : liquidPointer.y;
+        const radiusX = target ? target.width * 0.57 + 14 : 18;
+        const radiusY = target ? target.height * 0.57 + 14 : 18;
+
+        liquidContext.globalCompositeOperation = 'lighter';
+        drawLiquidPool(liquidPointer.x, liquidPointer.y, target ? 42 : 66, target ? 0.08 : 0.2);
+        if (target) drawLiquidPool(centerX, centerY, Math.max(radiusX, radiusY) + 34, 0.12);
+
+        if (target) {
+            liquidContext.beginPath();
+            liquidContext.moveTo(liquidPointer.x, liquidPointer.y);
+            liquidContext.lineTo(centerX, centerY);
+            liquidContext.strokeStyle = 'rgba(198, 255, 0, 0.18)';
+            liquidContext.lineWidth = 1;
+            liquidContext.stroke();
+        }
+
+        liquidParticles.forEach((particle) => {
+            const angle = particle.angle + elapsed * 0.22 + Math.sin(elapsed + particle.phase) * 0.12;
+            const spread = target ? 1 : 1 + Math.sin(elapsed * 1.8 + particle.phase) * 0.45;
+            const targetX = centerX + Math.cos(angle) * radiusX * spread;
+            const targetY = centerY + Math.sin(angle) * radiusY * spread;
+
+            if (!particle.initialized) {
+                particle.x = targetX;
+                particle.y = targetY;
+                particle.initialized = true;
+            }
+            particle.vx += (targetX - particle.x) * 0.025;
+            particle.vy += (targetY - particle.y) * 0.025;
+            particle.vx *= 0.84;
+            particle.vy *= 0.84;
+            particle.x += particle.vx;
+            particle.y += particle.vy;
+
+            liquidContext.beginPath();
+            liquidContext.fillStyle = 'rgba(220, 255, 125, 0.82)';
+            liquidContext.shadowColor = 'rgba(198, 255, 0, 0.85)';
+            liquidContext.shadowBlur = 12;
+            liquidContext.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+            liquidContext.fill();
+        });
+        liquidContext.shadowBlur = 0;
+        liquidContext.globalCompositeOperation = 'source-over';
+    }
+
+    function updateHover() {
+        if (activeLayer !== 'projects' || focusState !== 'idle' || isDragging) {
+            hoveredSprite = null;
+            return;
+        }
+        scene.updateMatrixWorld();
+        raycaster.setFromCamera(pointer, camera);
+        const hits = raycaster.intersectObjects(sprites);
+        hoveredSprite = hits.length > 0 ? hits[0].object : null;
+    }
+
+    function updateCursor() {
+        if (activeLayer !== 'projects' || focusState !== 'idle') {
+            canvas.style.cursor = 'default';
+            return;
+        }
+        if (isDragging) return;
+        canvas.style.cursor = hoveredSprite ? 'pointer' : 'grab';
+    }
+
+    canvas.addEventListener('mousedown', (e) => { downX = e.clientX; downY = e.clientY; });
+    canvas.addEventListener('click', (e) => {
+        const moved = Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY);
+        if (moved > 5) return;
+
+        if (activeLayer !== 'projects') return;
+        if (focusState === 'focused') { unfocusProject(); return; }
+        if (focusState !== 'idle') return;
+
+        pointer.set(
+            (e.clientX / window.innerWidth) * 2 - 1,
+            -(e.clientY / window.innerHeight) * 2 + 1
+        );
+        scene.updateMatrixWorld();
+        raycaster.setFromCamera(pointer, camera);
+        const hits = raycaster.intersectObjects(sprites);
+        if (hits.length > 0) focusProject(hits[0].object);
+    });
+
+
+    /* ==========================================================
+       12. RESIZE
+       ========================================================== */
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        resizeLiquidCanvas();
+
+        // Recompute focus target if a sprite is currently focused
+        if (focusState === 'focused' && focusedSprite) {
+            computeFocusTargets(focusedSprite);
+        }
+    });
+
+
+    /* ==========================================================
+       13. ANIMATION LOOP
+       ========================================================== */
+
+    const timer = new THREE.Timer();
+    timer.connect(document);
+    let lastHovered = null;
+
+    function animate() {
+        requestAnimationFrame(animate);
+
+        timer.update();
+        const elapsed = timer.getElapsed();
+
+        /* ---- a) MOMENTUM + ROTATION (only while idle) ---- */
+        if (focusState === 'idle') {
+            if (!isDragging && (velX !== 0 || velY !== 0)) {
+                const qx = new THREE.Quaternion().setFromAxisAngle(AXIS_X, velY);
+                const qy = new THREE.Quaternion().setFromAxisAngle(AXIS_Y, velX);
+                targetQuat.premultiply(qy).premultiply(qx);
+                velX *= MOMENTUM;
+                velY *= MOMENTUM;
+                if (Math.abs(velX) < 0.0001) velX = 0;
+                if (Math.abs(velY) < 0.0001) velY = 0;
+            }
+
+            if (isDragging) {
+                cloud.quaternion.copy(targetQuat);
+            } else {
+                cloud.quaternion.slerp(targetQuat, GLIDE_SMOOTHING);
+            }
+        }
+
+        /* ---- b) ZOOM ---- */
+        camera.position.z += (targetZoomZ - camera.position.z) * 0.08;
+
+        /* ---- c) FOCUS ANIMATION ---- */
+        if (focusState === 'focused' && focusedSprite) {
+            focusedSprite.position.lerp(focusTargetPos, 0.09);
+            focusedSprite.scale.lerp(focusTargetScale, 0.09);
+            if (focusedSprite.userData.video) {
+                focusBackdrop.position.copy(focusedSprite.position);
+            }
+        } else if (focusState === 'returning' && focusedSprite) {
+            focusedSprite.position.lerp(returnTargetPos, 0.11);
+            focusedSprite.scale.lerp(returnTargetScale, 0.11);
+
+            if (focusedSprite.position.distanceTo(returnTargetPos) < 0.6) {
+                // Snap the rest of the way and give it back to the cloud
+                cloud.attach(focusedSprite);
+                focusedSprite.position.copy(focusedSprite.userData.home);
+                focusedSprite.scale.set(
+                    focusedSprite.userData.baseScaleX,
+                    focusedSprite.userData.baseScaleY,
+                    1
+                );
+                focusedSprite.renderOrder = 3;
+                focusedSprite = null;
+                focusState = 'idle';
+                if (activeLayer === 'projects') layerBack.hidden = false;
+            }
+        }
+
+        /* ---- d) HOVER ---- */
+        updateHover();
+        updateCursor();
+        updateLiquid(elapsed);
+
+        /* ---- e) LINE COLOURS ---- */
+        if (hoveredSprite !== lastHovered) {
+            updateLineTargets();
+            lastHovered = hoveredSprite;
+        }
+        let colourDirty = false;
+        for (let i = 0; i < colorArray.length; i++) {
+            const diff = targetColors[i] - colorArray[i];
+            if (Math.abs(diff) > 0.001) {
+                colorArray[i] += diff * 0.12;
+                colourDirty = true;
+            }
+        }
+        if (colourDirty) lineGeometry.attributes.color.needsUpdate = true;
+
+        /* ---- f) SPRITE OPACITY FADE (focus / unfocus) ---- */
+        sprites.forEach(s => {
+            s.material.opacity += (s.userData.targetOpacity - s.material.opacity) * 0.1;
+        });
+
+        /* ---- g) LINE OPACITY FADE ---- */
+        if (lineMaterial.userData && lineMaterial.userData.targetOpacity !== undefined) {
+            lineMaterial.opacity +=
+                (lineMaterial.userData.targetOpacity - lineMaterial.opacity) * 0.1;
+        }
+
+        /* ---- h) HOVER SCALE (only while idle) ---- */
+        if (focusState === 'idle') {
+            sprites.forEach((sprite) => {
+                const isHovered = sprite === hoveredSprite;
+                const target = isHovered ? 1.15 : 1.0;
+                const current = sprite.scale.x / sprite.userData.baseScaleX;
+                const next = current + (target - current) * 0.15;
+                sprite.scale.set(
+                    sprite.userData.baseScaleX * next,
+                    sprite.userData.baseScaleY * next,
+                    1
+                );
+            });
+        }
+
+        /* ---- i) PULSATING BORDER ---- */
+        const pulse = 0.55 + Math.sin(elapsed * 4.5) * 0.45;
+
+        glows.forEach(({ glow, sprite }) => {
+            glow.position.copy(sprite.position);
+            glow.scale.set(
+                sprite.scale.x * BORDER_SCALE,
+                sprite.scale.y * BORDER_SCALE,
+                1
+            );
+
+            const targetFade = (sprite === hoveredSprite && focusState === 'idle') ? 1 : 0;
+            sprite.userData.glowFade +=
+                (targetFade - sprite.userData.glowFade) * 0.15;
+
+            glow.material.opacity = sprite.userData.glowFade * pulse;
+        });
+
+        renderer.render(scene, camera);
+    }
+
+    animate();
+    </script>
+</body>
+</html>
