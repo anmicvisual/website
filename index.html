@@ -1552,32 +1552,20 @@
         },
         {
             title: 'Project 2',
-            media: 'images/project2.1.jpg',
+            media: 'images/project3.png',
             description: 'A stage-based visual exploration using contrast, rhythm, and architectural framing to shape the energy of a live performance.',
             link: ''
         },
         {
             title: 'Project 3',
-            media: 'images/project2.2.jpg',
-            description: 'A high-contrast visual sequence designed for live movement, mapping sound into light and texture in real time.',
-            link: ''
-        },
-        {
-            title: 'Project 4',
-            media: 'images/project3.png',
+            media: 'images/project4.jpg',
             description: 'A darker, denser visual language built around depth, edge, and motion blur — shaped to feel immersive and physically present.',
             link: ''
         },
         {
-            title: 'Project 5',
-            media: 'images/project4.jpg',
-            description: 'A room-focused visual installation that treats light as structure, using scale, glow, and repetition to create an evolving sense of space.',
-            link: ''
-        },
-        {
-            title: 'Project 6',
+            title: 'Project 4',
             media: 'images/project5.png',
-            description: 'A more minimal direction focused on pacing and silence — allowing the geometry, tone, and motion to carry the whole composition.',
+            description: 'A room-focused visual installation that treats light as structure, using scale, glow, and repetition to create an evolving sense of space.',
             link: ''
         },
         {
@@ -1615,7 +1603,7 @@
             media: 'videos/project8.mp4',
             description: 'A live-space visual piece built to interact with the architecture of the room, balancing clarity, texture, and energy.',
             link: ''
-        },
+        }
     ];
 
     async function hydrateProjectDescriptions() {
@@ -1691,9 +1679,13 @@
         if (isVideoFile(path)) {
             const video = document.createElement('video');
             video.loop = true;
+            video.autoplay = true;
             video.muted = true;
+            video.defaultMuted = true;
             video.playsInline = true;
-            video.preload = 'metadata';
+            video.setAttribute('playsinline', 'true');
+            video.setAttribute('webkit-playsinline', 'true');
+            video.preload = 'auto';
             video.dataset.source = path;
             video.src = path;
 
