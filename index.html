@@ -1351,10 +1351,10 @@
             });
         }
 
-        function setAmbientLevel(activity) {
+        function setAmbientLevel(activity, videoFocused = false) {
             if (!ready) return;
-            const target = AMBIENT_IDLE + activity * (AMBIENT_ACTIVE - AMBIENT_IDLE);
-            ambientGain.gain.setTargetAtTime(target, ctx.currentTime, AMBIENT_RAMP);
+            const level = AMBIENT_IDLE + activity * (AMBIENT_ACTIVE - AMBIENT_IDLE);
+            ambientGain.gain.setTargetAtTime(videoFocused ? 0 : level, ctx.currentTime, AMBIENT_RAMP);
         }
 
         function setMuted(next) {
@@ -1406,7 +1406,9 @@
         const next = !audio.isMuted();
         audio.setMuted(next);
         if (focusedSprite && focusedSprite.userData.video) {
-            focusedSprite.userData.video.muted = next;
+            const video = focusedSprite.userData.video;
+            video.muted = next;
+            if (!next) video.play().catch(() => {});
         }
         muteToggle.classList.toggle('muted', next);
         muteToggle.textContent = next ? 'Sound Off' : 'Sound On';
@@ -1679,6 +1681,32 @@
 
     const textureLoader = new THREE.TextureLoader();
     const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mov', '.m4v', '.ogg'];
+    const VIDEO_VOLUME = 0.5;
+    const VIDEO_FADE_MS = 700;
+    const videoVolumeFades = new WeakMap();
+
+    function fadeVideoVolume(video, target, onComplete = null) {
+        const previousFrame = videoVolumeFades.get(video);
+        if (previousFrame) cancelAnimationFrame(previousFrame);
+
+        const startVolume = video.volume;
+        const startTime = performance.now();
+        function step(now) {
+            const progress = Math.min(1, (now - startTime) / VIDEO_FADE_MS);
+            const eased = progress * progress * (3 - 2 * progress);
+            video.volume = startVolume + (target - startVolume) * eased;
+
+            if (progress < 1) {
+                videoVolumeFades.set(video, requestAnimationFrame(step));
+                return;
+            }
+
+            videoVolumeFades.delete(video);
+            if (onComplete) onComplete();
+        }
+
+        videoVolumeFades.set(video, requestAnimationFrame(step));
+    }
 
     function isVideoFile(path) {
         const lower = path.toLowerCase();
@@ -1692,7 +1720,7 @@
             video.autoplay = true;
             video.muted = true;
             video.defaultMuted = true;
-            video.volume = 0.5;
+            video.volume = VIDEO_VOLUME;
             video.playsInline = true;
             video.setAttribute('playsinline', 'true');
             video.setAttribute('webkit-playsinline', 'true');
@@ -2099,7 +2127,7 @@
         if (sprite.userData.video) {
             const video = sprite.userData.video;
             video.loop = true;
-            video.volume = 0.5;
+            video.volume = 0;
             video.muted = audio.isMuted();
             video.currentTime = 0;
             video.ontimeupdate = () => {
@@ -2112,7 +2140,18 @@
                     video.currentTime = 0;
                 }
             };
-            video.play().catch(() => {});
+            const finishPlayback = () => {
+                if (focusedSprite !== sprite || focusState !== 'focused') return;
+                video.muted = audio.isMuted();
+                fadeVideoVolume(video, VIDEO_VOLUME);
+            };
+            video.play().then(finishPlayback).catch(() => {
+                if (focusedSprite !== sprite || focusState !== 'focused') return;
+                video.muted = true;
+                video.play().then(finishPlayback).catch((error) => {
+                    console.warn(`Could not play ${sprite.userData.title}:`, error);
+                });
+            });
         }
 
         computeFocusTargets(sprite);
@@ -2142,7 +2181,14 @@
 
     function unfocusProject() {
         if (focusState !== 'focused') return;
-        if (focusedSprite.userData.video) focusedSprite.userData.video.pause();
+        if (focusedSprite.userData.video) {
+            const video = focusedSprite.userData.video;
+            fadeVideoVolume(video, 0, () => {
+                video.pause();
+                video.muted = true;
+                video.volume = VIDEO_VOLUME;
+            });
+        }
         focusState = 'returning';
         scene.remove(focusBackdrop);
 
@@ -2555,7 +2601,10 @@
 
         audioActivity *= 0.994;
         if (audioActivity < 0.001) audioActivity = 0;
-        audio.setAmbientLevel(audioActivity);
+        audio.setAmbientLevel(
+            audioActivity,
+            focusState === 'focused' && Boolean(focusedSprite && focusedSprite.userData.video)
+        );
 
         if (focusState === 'idle') {
             if (!isDragging && (velX !== 0 || velY !== 0)) {
