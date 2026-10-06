@@ -1571,36 +1571,42 @@
         {
             title: 'Video Project 1',
             media: 'videos/project1.mp4',
+            fallback: 'images/project2.jpg',
             description: 'A motion-led visual set developed for a live performance context, with a strong focus on layered movement and atmosphere.',
             link: ''
         },
         {
             title: 'Video Project 2',
             media: 'videos/project2.mp4',
+            fallback: 'images/project3.png',
             description: 'A time-based visual narrative designed to shift between tension and release, shaped for a live room and responsive sound environment.',
             link: ''
         },
         {
             title: 'Video Project 3',
             media: 'videos/project4.mp4',
+            fallback: 'images/project4.jpg',
             description: 'A study in light and flow, using movement and repetition to build an immersive, constantly evolving visual field.',
             link: ''
         },
         {
             title: 'Video Project 4',
             media: 'videos/project5.mp4',
+            fallback: 'images/project5.png',
             description: 'A live visual approach built around spatial depth, flicker, and structure — designed to feel physical and responsive in the room.',
             link: ''
         },
         {
             title: 'Video Project 5',
             media: 'videos/project7.mp4',
+            fallback: 'images/project2.jpg',
             description: 'A more sculptural motion study exploring form, distortion, and rhythm within a restrained but intense visual palette.',
             link: ''
         },
         {
             title: 'Video Project 6',
             media: 'videos/project8.mp4',
+            fallback: 'images/project3.png',
             description: 'A live-space visual piece built to interact with the architecture of the room, balancing clarity, texture, and energy.',
             link: ''
         }
@@ -1675,7 +1681,7 @@
         return VIDEO_EXTENSIONS.some(ext => lower.endsWith(ext));
     }
 
-    function loadMedia(path, onReady) {
+    function loadMedia(path, onReady, fallbackPath = null) {
         if (isVideoFile(path)) {
             const video = document.createElement('video');
             video.loop = true;
@@ -1702,10 +1708,29 @@
             texture.magFilter = THREE.LinearFilter;
             texture.userData.videoElement = video;
 
+            let fallbackUsed = false;
+            const useFallback = () => {
+                if (!fallbackPath || fallbackUsed) return;
+                fallbackUsed = true;
+                const fallbackTexture = textureLoader.load(fallbackPath, (tex) => {
+                    tex.colorSpace = THREE.SRGBColorSpace;
+                    onReady(tex, tex.image.width / tex.image.height);
+                });
+                if (fallbackTexture && fallbackTexture.image) {
+                    onReady(fallbackTexture, fallbackTexture.image.width / fallbackTexture.image.height);
+                }
+            };
+
+            video.addEventListener('error', () => useFallback());
+            video.addEventListener('abort', () => useFallback());
             video.addEventListener('seeked', () => { texture.needsUpdate = true; });
             video.addEventListener('loadedmetadata', () => {
-                onReady(texture, video.videoWidth / video.videoHeight);
-                if (video.duration > 0) video.currentTime = Math.min(0.1, video.duration / 2);
+                if (video.videoWidth && video.videoHeight) {
+                    onReady(texture, video.videoWidth / video.videoHeight);
+                    if (video.duration > 0) video.currentTime = Math.min(0.1, video.duration / 2);
+                } else {
+                    useFallback();
+                }
             });
 
             return texture;
@@ -1836,7 +1861,7 @@
                 sprite.scale.set(focusedHeight * aspect, focusedHeight, 1);
                 computeFocusTargets(sprite);
             }
-        });
+        }, project.fallback);
 
         sprite.userData.video = texture.userData.videoElement || null;
         material.map = texture;
