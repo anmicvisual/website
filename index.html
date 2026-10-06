@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My 3D Portfolio</title>
+    <title>Anmicvisual — Live visuals & spatial design</title>
     <style>
         :root {
             --accent: #c6ff00;
@@ -21,13 +21,199 @@
         canvas { display: block; cursor: grab; }
         canvas.dragging { cursor: grabbing; }
 
-        #liquid-overlay {
+        #cursor-feedback {
             position: fixed;
             inset: 0;
+            z-index: 11;
+            pointer-events: none;
             width: 100%;
             height: 100%;
+        }
+
+        #veil {
+            position: fixed;
+            inset: 0;
+            z-index: 8;
             pointer-events: none;
-            z-index: 2;
+            background: #000;
+            opacity: 0.98;
+            will-change: opacity;
+        }
+
+        #stage-lights {
+            position: fixed;
+            inset: 0;
+            z-index: 9;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .beam {
+            position: absolute;
+            top: -80vh;
+            width: 70vw;
+            height: 200vh;
+            filter: blur(70px);
+            opacity: 0;
+            will-change: transform, opacity;
+            transform-origin: 50% 0%;
+            --beam-rotate: 0deg;
+            transform: rotate(var(--beam-rotate)) scale(0.85);
+            background: linear-gradient(180deg,
+                rgba(255, 255, 255, 0.95) 0%,
+                rgba(235, 255, 170, 0.55) 22%,
+                rgba(198, 255, 0, 0.18) 60%,
+                rgba(198, 255, 0, 0) 100%);
+        }
+        .beam-1 { left: -20vw;  --beam-rotate:  20deg; }
+        .beam-2 { right: -20vw; --beam-rotate: -20deg; }
+        .beam-3 { left: 15vw; width: 70vw; --beam-rotate: 0deg; }
+
+        #stage-lights.on .beam {
+            animation: beam-hit 2.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+        #stage-lights.on .beam-1 { animation-delay: 0.00s; }
+        #stage-lights.on .beam-2 { animation-delay: 0.06s; }
+        #stage-lights.on .beam-3 { animation-delay: 0.14s; }
+
+        @keyframes beam-hit {
+            0%   { opacity: 0;    transform: rotate(var(--beam-rotate)) scale(0.85); }
+            10%  { opacity: 1;    transform: rotate(var(--beam-rotate)) scale(1.08); }
+            22%  { opacity: 0.25; transform: rotate(var(--beam-rotate)) scale(0.98); }
+            40%  { opacity: 0.95; transform: rotate(var(--beam-rotate)) scale(1.04); }
+            58%  { opacity: 0.50; transform: rotate(var(--beam-rotate)) scale(1.00); }
+            100% { opacity: 0.58; transform: rotate(var(--beam-rotate)) scale(1.00); }
+        }
+
+        #stage-lights.settled .beam {
+            animation: beam-sway 9s ease-in-out infinite;
+        }
+        #stage-lights.settled .beam-1 { animation-delay: 0s;   }
+        #stage-lights.settled .beam-2 { animation-delay: 1.5s; }
+        #stage-lights.settled .beam-3 { animation-delay: 3s;   }
+
+        @keyframes beam-sway {
+            0%, 100% { opacity: 0.45; transform: rotate(var(--beam-rotate))                 scale(1.00); }
+            50%      { opacity: 0.72; transform: rotate(calc(var(--beam-rotate) + 1.5deg)) scale(1.02); }
+        }
+
+        .flash {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            will-change: opacity;
+            background: radial-gradient(circle at 50% 30%,
+                rgba(255, 255, 255, 1) 0%,
+                rgba(235, 255, 170, 0.7) 22%,
+                rgba(198, 255, 0, 0.25) 45%,
+                transparent 70%);
+        }
+        #stage-lights.on .flash {
+            animation: flash-hit 1.6s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+        }
+        @keyframes flash-hit {
+            0%   { opacity: 0;   }
+            8%   { opacity: 1;   }
+            18%  { opacity: 0.4; }
+            100% { opacity: 0;   }
+        }
+
+        #light-seed {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 160px;
+            height: 160px;
+            margin: -80px 0 0 -80px;
+            z-index: 10;
+            pointer-events: none;
+            transition: opacity 0.35s ease, transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        #light-seed::before,
+        #light-seed::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+        }
+        #light-seed::before {
+            background: radial-gradient(
+                circle at center,
+                rgba(198, 255, 0, 0.55) 0%,
+                rgba(198, 255, 0, 0.18) 30%,
+                rgba(198, 255, 0, 0.00) 70%
+            );
+            animation: seed-pulse 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+        #light-seed::after {
+            inset: 45%;
+            background: radial-gradient(
+                circle at center,
+                #ffffff 0%,
+                #eaffaa 25%,
+                var(--accent) 55%,
+                rgba(198, 255, 0, 0.00) 100%
+            );
+            box-shadow:
+                0 0 26px rgba(198, 255, 0, 0.55),
+                0 0 60px rgba(198, 255, 0, 0.35);
+            animation: seed-core 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+        #light-seed .ripple {
+            position: absolute;
+            inset: 12%;
+            border-radius: 50%;
+            border: 1px solid rgba(198, 255, 0, 0.55);
+            animation: seed-ripple 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            pointer-events: none;
+        }
+        #light-seed .ripple.delay { animation-delay: 1.6s; }
+
+        @keyframes seed-pulse {
+            0%, 100% { transform: scale(0.92); opacity: 0.75; }
+            50%      { transform: scale(1.06); opacity: 1; }
+        }
+        @keyframes seed-core {
+            0%, 100% { transform: scale(0.94); opacity: 0.85; }
+            50%      { transform: scale(1.10); opacity: 1; }
+        }
+        @keyframes seed-ripple {
+            0%   { transform: scale(0.55); opacity: 0; }
+            15%  { opacity: 0.85; }
+            100% { transform: scale(2.10); opacity: 0; }
+        }
+
+        #light-hint {
+            position: fixed;
+            top: calc(50% + 120px);
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            color: #879198;
+            font-family: var(--font-code);
+            font-weight: 700;
+            font-size: 11px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            pointer-events: none;
+            user-select: none;
+            text-align: center;
+            opacity: 0.85;
+            animation: hint-fade 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            transition: opacity 0.35s ease, transform 0.35s ease;
+        }
+        @keyframes hint-fade {
+            0%, 100% { opacity: 0.55; }
+            50%      { opacity: 1; }
+        }
+        #light-hint.gone {
+            opacity: 0;
+            transform: translateX(-50%) translateY(8px);
+        }
+
+        #light-seed.gone {
+            opacity: 0;
+            transform: scale(1.6);
         }
 
         #hint {
@@ -45,9 +231,128 @@
             text-align: center;
             line-height: 1.6;
             transition: opacity 0.4s ease;
+            z-index: 12;
         }
         #hint span { color: var(--accent); }
         #hint.hidden { opacity: 0; }
+
+        #mute-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 12;
+            padding: 8px 14px;
+            background: transparent;
+            border: 1px solid rgba(198, 255, 0, 0.35);
+            border-radius: 3px;
+            color: var(--accent);
+            font-family: var(--font-code);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            opacity: 0;
+            pointer-events: none;
+        }
+        #mute-toggle.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        #mute-toggle:hover {
+            border-color: var(--accent);
+            background: rgba(198, 255, 0, 0.08);
+            color: #fff;
+        }
+        #mute-toggle.muted {
+            color: #5a6169;
+            border-color: rgba(120, 128, 136, 0.35);
+        }
+        #mute-toggle.muted:hover {
+            color: #879198;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        #discovery-counter {
+            position: fixed;
+            top: 24px;
+            right: 28px;
+            z-index: 12;
+            text-align: right;
+            font-family: var(--font-code);
+            font-weight: 700;
+            font-size: 11px;
+            letter-spacing: 0;
+            text-transform: uppercase;
+            color: #879198;
+            pointer-events: none;
+            user-select: none;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        #discovery-counter.visible { opacity: 1; }
+        #discovery-counter .label {
+            font-size: 9px;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+        #discovery-counter .value {
+            color: #f3f5f6;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        #discovery-counter .value #discovered-count {
+            color: var(--accent);
+        }
+        #discovery-counter .bar {
+            width: 120px;
+            height: 2px;
+            background: rgba(198, 255, 0, 0.14);
+            margin-left: auto;
+            overflow: hidden;
+        }
+        #discovery-counter .fill {
+            height: 100%;
+            width: 0%;
+            background: var(--accent);
+            transition: width 0.6s cubic-bezier(0.22, 0.61, 0.36, 1);
+            box-shadow: 0 0 8px rgba(198, 255, 0, 0.6);
+        }
+        #discovery-counter.complete .value {
+            color: var(--accent);
+            text-shadow: 0 0 12px rgba(198, 255, 0, 0.5);
+        }
+
+        #discovery-celebration {
+            position: fixed;
+            inset: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 14px;
+            background: radial-gradient(circle at center, rgba(198, 255, 0, 0.14), rgba(0, 0, 0, 0.85) 60%, rgba(0, 0, 0, 0.95));
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.8s ease;
+            font-family: var(--font-code);
+            text-transform: uppercase;
+            letter-spacing: 4px;
+        }
+        #discovery-celebration.visible { opacity: 1; }
+        #discovery-celebration .big {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--accent);
+            text-shadow: 0 0 24px rgba(198, 255, 0, 0.55);
+        }
+        #discovery-celebration .small {
+            font-size: 11px;
+            color: #879198;
+            letter-spacing: 3px;
+        }
 
         #topic-home {
             position: fixed;
@@ -87,7 +392,7 @@
         }
         .topic-hero h1 em { color: var(--accent); font-weight: 800; }
         .topic-intro {
-            max-width: 420px;
+            max-width: 460px;
             margin: 18px 0 0;
             color: #adb7bd;
             font: 500 15px/1.65 var(--font-tech);
@@ -117,9 +422,6 @@
             outline: none;
             background: rgba(255, 255, 255, 0.055);
         }
-        .topic-choice[data-topic="contact"],
-        .topic-choice[data-topic="upcoming"],
-        .topic-choice[data-topic="about"] { --topic-accent: var(--accent); }
         .topic-number {
             color: var(--topic-accent);
             font: 700 11px/1.4 var(--font-code);
@@ -158,7 +460,6 @@
         #layer-back:hover { color: var(--accent); }
         #layer-back[hidden] { display: none; }
 
-        /* ---------- Text panel ---------- */
         #text-panel {
             position: fixed;
             top: 50%;
@@ -191,7 +492,6 @@
             background: rgba(198, 255, 0, 0.32);
             border-radius: 3px;
         }
-
         #close-btn {
             position: absolute;
             top: 26px;
@@ -212,7 +512,6 @@
             background: rgba(198, 255, 0, 0.12);
             color: #fff;
         }
-
         #text-title {
             font-size: 32px;
             font-family: var(--font-tech);
@@ -222,18 +521,12 @@
             color: #fff;
             text-transform: capitalize;
         }
-
         #text-underline {
             width: 60px;
             height: 2px;
-            background: linear-gradient(
-                to right,
-                var(--accent),
-                rgba(198, 255, 0, 0)
-            );
+            background: linear-gradient(to right, var(--accent), rgba(198, 255, 0, 0));
             margin-bottom: 30px;
         }
-
         #text-content {
             font-family: var(--font-tech);
             font-size: 15px;
@@ -245,7 +538,6 @@
             transition: opacity 0.5s ease 0.15s;
         }
         #text-content.loaded { opacity: 1; }
-
         #text-link {
             display: inline-block;
             margin-top: 40px;
@@ -288,6 +580,9 @@
             .topic-name { font-size: 25px; }
             .topic-description { font-size: 11px; }
             #layer-back { top: 8px; left: 18px; }
+            #discovery-counter { top: 14px; right: 18px; font-size: 10px; }
+            #discovery-counter .bar { width: 80px; }
+            #mute-toggle { bottom: 12px; right: 12px; padding: 6px 10px; font-size: 9px; }
             #text-panel {
                 top: auto;
                 bottom: 0;
@@ -310,56 +605,93 @@
             #text-underline { margin-bottom: 16px; }
             #text-content { font-size: 14px; line-height: 1.6; }
             #text-link { margin-top: 20px; }
+            #light-seed { width: 130px; height: 130px; margin: -65px 0 0 -65px; }
+            #light-hint { top: calc(50% + 100px); font-size: 10px; letter-spacing: 2px; }
+
+            .beam { filter: blur(45px); width: 80vw; }
+            .beam-1 { left: -30vw; }
+            .beam-2 { right: -30vw; }
         }
     </style>
 </head>
 <body>
     <canvas id="scene"></canvas>
-    <canvas id="liquid-overlay" aria-hidden="true"></canvas>
+
+    <canvas id="cursor-feedback" aria-hidden="true"></canvas>
+
     <main id="topic-home">
         <div class="topic-topline">
             <span class="topic-brand">Anmicvisual</span>
-            <span>Image / Motion / Digital Space</span>
+            <span>Light · Space · Sound</span>
         </div>
         <section class="topic-hero">
-            <p class="topic-kicker">A visual practice in motion</p>
-            <h1>Make room<br>for <em>the unexpected.</em></h1>
-            <p class="topic-intro">Moving image, visual experiments, and the projects taking shape around them.</p>
+            <p class="topic-kicker">Live visuals · Spatial light · 3D</p>
+            <h1>Light that belongs<br>to <em>the room.</em></h1>
+            <p class="topic-intro">I build visual worlds for live spaces — clubs, festivals, stages. The screen is one part of it. The room is the rest.</p>
         </section>
         <nav class="topic-grid" aria-label="Portfolio topics">
             <button class="topic-choice" type="button" data-topic="projects">
                 <span class="topic-number">01 / ARCHIVE</span>
                 <span class="topic-name">Projects</span>
-                <span class="topic-description">Selected work <span class="topic-arrow">↗</span></span>
+                <span class="topic-description">Live sets, installations, commissions <span class="topic-arrow">↗</span></span>
             </button>
             <button class="topic-choice" type="button" data-topic="contact">
                 <span class="topic-number">02 / OPEN LINE</span>
                 <span class="topic-name">Contact</span>
-                <span class="topic-description">Start a conversation <span class="topic-arrow">↗</span></span>
+                <span class="topic-description">Book a call or send a brief <span class="topic-arrow">↗</span></span>
             </button>
             <button class="topic-choice" type="button" data-topic="upcoming">
                 <span class="topic-number">03 / IN PROGRESS</span>
                 <span class="topic-name">Upcoming</span>
-                <span class="topic-description">What’s taking shape <span class="topic-arrow">↗</span></span>
+                <span class="topic-description">Next projects & availability <span class="topic-arrow">↗</span></span>
             </button>
             <button class="topic-choice" type="button" data-topic="about">
                 <span class="topic-number">04 / CONTEXT</span>
                 <span class="topic-name">About</span>
-                <span class="topic-description">The practice behind it <span class="topic-arrow">↗</span></span>
+                <span class="topic-description">How I work <span class="topic-arrow">↗</span></span>
             </button>
         </nav>
         <footer class="topic-footer">
-            <span>Independent visual practice</span>
-            <span>Explore the index</span>
+            <span>Solo practice · NRW, Germany</span>
+            <span>Enter the archive</span>
         </footer>
     </main>
+
     <button id="layer-back" type="button" hidden>← All topics</button>
+
     <div id="hint" class="hidden">
-        <span>DRAG</span> TO ROTATE &nbsp;·&nbsp; <span>SCROLL</span> TO ZOOM<br>
-        CLICK A PROJECT TO OPEN IT
+        <span>DRAG</span> TO EXPLORE &nbsp;·&nbsp; <span>HOLD</span> TO REVEAL<br>
+        CLICK TO OPEN
     </div>
 
-    <!-- The sliding text panel -->
+    <div id="veil"></div>
+
+    <div id="stage-lights" aria-hidden="true">
+        <div class="beam beam-1"></div>
+        <div class="beam beam-2"></div>
+        <div class="beam beam-3"></div>
+        <div class="flash"></div>
+    </div>
+
+    <div id="light-seed">
+        <div class="ripple"></div>
+        <div class="ripple delay"></div>
+    </div>
+    <div id="light-hint">Press to illuminate</div>
+
+    <div id="discovery-counter" aria-hidden="true">
+        <div class="label">Discovered</div>
+        <div class="value"><span id="discovered-count">0</span> / <span id="discovered-total">0</span></div>
+        <div class="bar"><div class="fill" id="discovery-fill"></div></div>
+    </div>
+
+    <div id="discovery-celebration" aria-hidden="true">
+        <div class="big">Archive complete</div>
+        <div class="small">All projects found</div>
+    </div>
+
+    <button id="mute-toggle" aria-label="Toggle sound">Sound On</button>
+
     <div id="text-panel">
         <button id="close-btn" aria-label="Close">×</button>
         <h1 id="text-title"></h1>
@@ -380,7 +712,800 @@
     import * as THREE from 'three';
 
     /* ==========================================================
-       1. SCENE, CAMERA, RENDERER
+       1. CURSOR FEEDBACK LOOP
+       ========================================================== */
+
+    const feedbackCanvas = document.getElementById('cursor-feedback');
+    const feedbackCtx    = feedbackCanvas.getContext('2d');
+
+    const bufA  = document.createElement('canvas');
+    const bufB  = document.createElement('canvas');
+    const ctxA  = bufA.getContext('2d');
+    const ctxB  = bufB.getContext('2d');
+
+    let writeBuf = bufA;
+    let writeCtx = ctxA;
+    let readBuf  = bufB;
+    let readCtx  = ctxB;
+
+    const RETENTION      = 0.985;
+    const CORE_RADIUS    = 14;
+    const TINT_STRENGTH  = 0.02;
+    const TINT_COLOR     = [90, 255, 90];
+    const PULL_TO_CURSOR = true;
+    const SHRINK         = 0.9994;
+    const ROTATION       = 0.0004;
+
+    let fCursorX = -9999;
+    let fCursorY = -9999;
+    let fCursorVisible = false;
+    let fCursorHasMoved = false;
+
+    function resizeFeedbackCanvases() {
+        const ratio = Math.min(window.devicePixelRatio || 1, 2);
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+
+        feedbackCanvas.width  = Math.round(w * ratio);
+        feedbackCanvas.height = Math.round(h * ratio);
+        feedbackCtx.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+        bufA.width  = feedbackCanvas.width;
+        bufA.height = feedbackCanvas.height;
+        bufB.width  = feedbackCanvas.width;
+        bufB.height = feedbackCanvas.height;
+
+        ctxA.setTransform(ratio, 0, 0, ratio, 0, 0);
+        ctxB.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+        ctxA.clearRect(0, 0, w, h);
+        ctxB.clearRect(0, 0, w, h);
+
+        ctxA.imageSmoothingEnabled = true;
+        ctxA.imageSmoothingQuality = 'high';
+        ctxB.imageSmoothingEnabled = true;
+        ctxB.imageSmoothingQuality = 'high';
+    }
+    resizeFeedbackCanvases();
+
+    window.addEventListener('mousemove', (e) => {
+        fCursorX = e.clientX;
+        fCursorY = e.clientY;
+        fCursorVisible = true;
+        fCursorHasMoved = true;
+    });
+
+    window.addEventListener('mouseleave', () => { fCursorVisible = false; });
+    window.addEventListener('blur',       () => { fCursorVisible = false; });
+
+    window.addEventListener('touchmove', (e) => {
+        const t = e.touches[0];
+        fCursorX = t.clientX;
+        fCursorY = t.clientY;
+        fCursorVisible = true;
+        fCursorHasMoved = true;
+    }, { passive: true });
+
+    window.addEventListener('touchend', () => { fCursorVisible = false; });
+
+    function drawFeedbackLoop() {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+
+        writeCtx.clearRect(0, 0, w, h);
+
+        if (fCursorHasMoved) {
+            writeCtx.save();
+            if (PULL_TO_CURSOR) {
+                writeCtx.translate(fCursorX, fCursorY);
+                writeCtx.rotate(ROTATION);
+                writeCtx.scale(SHRINK, SHRINK);
+                writeCtx.translate(-fCursorX, -fCursorY);
+            }
+            writeCtx.drawImage(readBuf, 0, 0, w, h);
+            writeCtx.restore();
+
+            writeCtx.globalCompositeOperation = 'destination-out';
+            writeCtx.fillStyle = 'rgba(0, 0, 0, ' + (1 - RETENTION) + ')';
+            writeCtx.fillRect(0, 0, w, h);
+
+            writeCtx.globalCompositeOperation = 'source-atop';
+            writeCtx.fillStyle = 'rgba('
+                + TINT_COLOR[0] + ','
+                + TINT_COLOR[1] + ','
+                + TINT_COLOR[2] + ','
+                + TINT_STRENGTH + ')';
+            writeCtx.fillRect(0, 0, w, h);
+
+            writeCtx.globalCompositeOperation = 'source-over';
+
+            if (fCursorVisible) {
+                const grad = writeCtx.createRadialGradient(
+                    fCursorX, fCursorY, 0,
+                    fCursorX, fCursorY, CORE_RADIUS
+                );
+                grad.addColorStop(0.00, 'rgba(255, 255, 255, 0.9)');
+                grad.addColorStop(0.28, 'rgba(235, 255, 200, 0.55)');
+                grad.addColorStop(0.68, 'rgba(198, 255, 0, 0.2)');
+                grad.addColorStop(1.00, 'rgba(198, 255, 0, 0)');
+
+                writeCtx.fillStyle = grad;
+                writeCtx.beginPath();
+                writeCtx.arc(fCursorX, fCursorY, CORE_RADIUS, 0, Math.PI * 2);
+                writeCtx.fill();
+            }
+        }
+
+        feedbackCtx.clearRect(0, 0, w, h);
+        feedbackCtx.drawImage(writeBuf, 0, 0, w, h);
+
+        const tmpBuf = writeBuf;
+        const tmpCtx = writeCtx;
+        writeBuf = readBuf;
+        writeCtx = readCtx;
+        readBuf  = tmpBuf;
+        readCtx  = tmpCtx;
+
+        requestAnimationFrame(drawFeedbackLoop);
+    }
+    drawFeedbackLoop();
+
+
+    /* ==========================================================
+       1b. AUDIO SYSTEM — ambient, reactive, hover-driven
+       ----------------------------------------------------------
+       Design principles:
+         • Ambient bed is the dominant voice — four layers
+         • Hover on a topic card fades in a distinct pad
+         • Hover on a project fades in a pad that rises in pitch
+           and volume as dwell progresses
+         • No short random events, no tick sequences
+         • Clicks are accents, not the main event
+       ========================================================== */
+
+    const audio = (() => {
+        let ctx = null;
+        let ready = false;
+        let muted = false;
+
+        let masterGain, ambientBus, ambientGain, uiBus, reverbBus, reverbSend;
+
+        // Ambient layers
+        let subOsc, subGain;
+        let humOsc, humFilter, humGain;
+        let padSrc, padFilter, padGain, padLFO, padLFOGain;
+        let airSrc, airFilter, airGain;
+
+        // Topic hover voice
+        let topicVoice = null;
+
+        // Project hover voice
+        let projectVoice = null;
+        let projectProgress = 0;
+
+        const AMBIENT_IDLE   = 0.12;
+        const AMBIENT_ACTIVE = 0.32;
+        const AMBIENT_RAMP   = 0.9;
+
+        // Topic card voices — each a distinct two-tone pad
+        const TOPIC_VOICES = {
+            projects: { freq1: 146.83, freq2: 220.00, filter: 700, gain: 0.055 },   // D3 + A3 — archival, deep
+            contact:  { freq1: 164.81, freq2: 246.94, filter: 900, gain: 0.050 },   // E3 + B3 — open, bright
+            upcoming: { freq1: 196.00, freq2: 293.66, filter: 950, gain: 0.050 },   // G3 + D4 — forward, elevated
+            about:    { freq1: 130.81, freq2: 196.00, filter: 600, gain: 0.055 }    // C3 + G3 — calm, stable
+        };
+
+        function init() {
+            if (ready) return;
+            try {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContextClass) return;
+
+                ctx = new AudioContextClass();
+                if (ctx.state === 'suspended') ctx.resume();
+
+                masterGain = ctx.createGain();
+                masterGain.gain.value = 0;
+                masterGain.connect(ctx.destination);
+
+                masterGain.gain.setValueAtTime(0, ctx.currentTime);
+                masterGain.gain.linearRampToValueAtTime(muted ? 0 : 0.78, ctx.currentTime + 1.4);
+
+                ambientBus = ctx.createGain();
+                ambientBus.gain.value = 1.0;
+                ambientBus.connect(masterGain);
+
+                ambientGain = ctx.createGain();
+                ambientGain.gain.value = 0;
+                ambientGain.connect(ambientBus);
+
+                uiBus = ctx.createGain();
+                uiBus.gain.value = 1.0;
+                uiBus.connect(masterGain);
+
+                reverbBus = ctx.createConvolver();
+                reverbBus.buffer = makeReverbIR(1.4, 2.8);
+                reverbBus.connect(masterGain);
+
+                reverbSend = ctx.createGain();
+                reverbSend.gain.value = 0.30;
+                reverbSend.connect(reverbBus);
+
+                buildAmbientBed();
+
+                ready = true;
+                ambientGain.gain.setTargetAtTime(AMBIENT_IDLE, ctx.currentTime, 1.8);
+            } catch (err) {
+                console.warn('Audio init failed:', err);
+            }
+        }
+
+        function makeReverbIR(duration, decay) {
+            const rate = ctx.sampleRate;
+            const length = Math.round(rate * duration);
+            const impulse = ctx.createBuffer(2, length, rate);
+            for (let ch = 0; ch < 2; ch++) {
+                const data = impulse.getChannelData(ch);
+                for (let i = 0; i < length; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
+                }
+            }
+            return impulse;
+        }
+
+        function makeNoiseBuffer(seconds) {
+            const rate = ctx.sampleRate;
+            const length = Math.round(rate * seconds);
+            const buffer = ctx.createBuffer(1, length, rate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+            return buffer;
+        }
+
+        function buildAmbientBed() {
+            // ---- 1. Sub for weight (very quiet) ----
+            subOsc = ctx.createOscillator();
+            subOsc.type = 'sine';
+            subOsc.frequency.value = 55;
+            subGain = ctx.createGain();
+            subGain.gain.value = 0.045;
+            subOsc.connect(subGain);
+            subGain.connect(ambientGain);
+            subOsc.start();
+
+            // ---- 2. Electric hum (110Hz triangle) ----
+            humOsc = ctx.createOscillator();
+            humOsc.type = 'triangle';
+            humOsc.frequency.value = 110;
+            humFilter = ctx.createBiquadFilter();
+            humFilter.type = 'lowpass';
+            humFilter.frequency.value = 460;
+            humFilter.Q.value = 0.7;
+            humGain = ctx.createGain();
+            humGain.gain.value = 0.14;
+            humOsc.connect(humFilter);
+            humFilter.connect(humGain);
+            humGain.connect(ambientGain);
+            humOsc.start();
+
+            // ---- 3. Slow-drifting pad (bandpass noise with moving center) ----
+            padSrc = ctx.createBufferSource();
+            padSrc.buffer = makeNoiseBuffer(6);
+            padSrc.loop = true;
+
+            padFilter = ctx.createBiquadFilter();
+            padFilter.type = 'bandpass';
+            padFilter.frequency.value = 280;
+            padFilter.Q.value = 3.5;
+
+            padLFO = ctx.createOscillator();
+            padLFO.type = 'sine';
+            padLFO.frequency.value = 0.065;
+            padLFOGain = ctx.createGain();
+            padLFOGain.gain.value = 110;
+            padLFO.connect(padLFOGain);
+            padLFOGain.connect(padFilter.frequency);
+
+            padGain = ctx.createGain();
+            padGain.gain.value = 0.055;
+
+            padSrc.connect(padFilter);
+            padFilter.connect(padGain);
+            padGain.connect(ambientGain);
+
+            padSrc.start();
+            padLFO.start();
+
+            // ---- 4. High circuit air ----
+            airSrc = ctx.createBufferSource();
+            airSrc.buffer = makeNoiseBuffer(4);
+            airSrc.loop = true;
+            airFilter = ctx.createBiquadFilter();
+            airFilter.type = 'highpass';
+            airFilter.frequency.value = 3400;
+            airGain = ctx.createGain();
+            airGain.gain.value = 0.006;
+            airSrc.connect(airFilter);
+            airFilter.connect(airGain);
+            airGain.connect(ambientGain);
+            airSrc.start();
+        }
+
+        // ---------- Mechanical relay tick (used only for wake) ----------
+        function noiseTick(time, opts) {
+            const o = opts || {};
+            const duration = o.duration || 0.014;
+            const freq = o.freq || 3200;
+            const q = o.q || 3;
+            const gain = o.gain || 0.22;
+
+            const src = ctx.createBufferSource();
+            src.buffer = makeNoiseBuffer(duration + 0.02);
+
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.value = freq;
+            filter.Q.value = q;
+
+            const g = ctx.createGain();
+            g.gain.setValueAtTime(0, time);
+            g.gain.linearRampToValueAtTime(gain, time + 0.001);
+            g.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+
+            src.connect(filter);
+            filter.connect(g);
+            g.connect(uiBus);
+            g.connect(reverbSend);
+
+            src.start(time);
+            src.stop(time + duration + 0.05);
+        }
+
+        // ---------- Wake click — power-on, softened ----------
+        function playWakeClick() {
+            if (!ready || muted) return;
+            const t = ctx.currentTime;
+
+            // Three relay ticks, spaced further apart
+            noiseTick(t + 0.000, { duration: 0.014, freq: 3200, q: 4.0, gain: 0.22 });
+            noiseTick(t + 0.075, { duration: 0.014, freq: 4000, q: 4.0, gain: 0.18 });
+            noiseTick(t + 0.155, { duration: 0.018, freq: 2800, q: 3.5, gain: 0.22 });
+
+            // Power-on sweep — square through lowpass opening then closing
+            const sweep = ctx.createOscillator();
+            sweep.type = 'square';
+            sweep.frequency.setValueAtTime(660, t + 0.15);
+            sweep.frequency.exponentialRampToValueAtTime(180, t + 0.55);
+
+            const sweepFilter = ctx.createBiquadFilter();
+            sweepFilter.type = 'lowpass';
+            sweepFilter.frequency.setValueAtTime(2400, t + 0.15);
+            sweepFilter.frequency.exponentialRampToValueAtTime(320, t + 0.60);
+            sweepFilter.Q.value = 2;
+
+            const sweepGain = ctx.createGain();
+            sweepGain.gain.setValueAtTime(0, t + 0.15);
+            sweepGain.gain.linearRampToValueAtTime(0.07, t + 0.17);
+            sweepGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.65);
+
+            sweep.connect(sweepFilter);
+            sweepFilter.connect(sweepGain);
+            sweepGain.connect(uiBus);
+            sweepGain.connect(reverbSend);
+            sweep.start(t + 0.15);
+            sweep.stop(t + 0.70);
+
+            // Soft mid body
+            const body = ctx.createOscillator();
+            body.type = 'triangle';
+            body.frequency.setValueAtTime(140, t);
+            body.frequency.exponentialRampToValueAtTime(70, t + 0.25);
+
+            const bodyGain = ctx.createGain();
+            bodyGain.gain.setValueAtTime(0, t);
+            bodyGain.gain.linearRampToValueAtTime(0.11, t + 0.02);
+            bodyGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.60);
+
+            body.connect(bodyGain);
+            bodyGain.connect(uiBus);
+            body.start(t);
+            body.stop(t + 0.65);
+        }
+
+        // ---------- Topic card hover voice — sustained pad ----------
+        function startTopicHover(topic) {
+            if (!ready || muted) return;
+            stopTopicHover();
+            if (topic === 'projects' && activeLayer === 'projects') return;
+
+            const config = TOPIC_VOICES[topic];
+            if (!config) return;
+
+            const t = ctx.currentTime;
+
+            const osc1 = ctx.createOscillator();
+            osc1.type = 'triangle';
+            osc1.frequency.value = config.freq1;
+
+            const osc2 = ctx.createOscillator();
+            osc2.type = 'sine';
+            osc2.frequency.value = config.freq2;
+
+            const g1 = ctx.createGain();
+            g1.gain.value = 0.6;
+            const g2 = ctx.createGain();
+            g2.gain.value = 0.4;
+
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = config.filter;
+            filter.Q.value = 1.6;
+
+            const out = ctx.createGain();
+            out.gain.setValueAtTime(0, t);
+            out.gain.linearRampToValueAtTime(config.gain, t + 0.55);
+
+            osc1.connect(g1);
+            osc2.connect(g2);
+            g1.connect(filter);
+            g2.connect(filter);
+            filter.connect(out);
+            out.connect(uiBus);
+            out.connect(reverbSend);
+
+            osc1.start(t);
+            osc2.start(t);
+
+            topicVoice = { osc1, osc2, out };
+        }
+
+        function stopTopicHover() {
+            if (!topicVoice) return;
+            const t = ctx.currentTime;
+            const { osc1, osc2, out } = topicVoice;
+            out.gain.cancelScheduledValues(t);
+            out.gain.setValueAtTime(out.gain.value, t);
+            out.gain.linearRampToValueAtTime(0, t + 0.85);
+            osc1.stop(t + 1.2);
+            osc2.stop(t + 1.2);
+            topicVoice = null;
+        }
+
+        // ---------- Project hover voice — rising sustained pad ----------
+        function startProjectHover() {
+            if (!ready || muted) return;
+            if (projectVoice) return;
+            projectProgress = 0;
+
+            const t = ctx.currentTime;
+
+            const osc1 = ctx.createOscillator();
+            osc1.type = 'triangle';
+            osc1.frequency.value = 220;
+
+            const osc2 = ctx.createOscillator();
+            osc2.type = 'sine';
+            osc2.frequency.value = 220 * 1.006;
+
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.value = 400;
+            filter.Q.value = 1.8;
+
+            const out = ctx.createGain();
+            out.gain.setValueAtTime(0, t);
+            out.gain.linearRampToValueAtTime(0.028, t + 0.4);
+
+            osc1.connect(filter);
+            osc2.connect(filter);
+            filter.connect(out);
+            out.connect(uiBus);
+            out.connect(reverbSend);
+
+            osc1.start(t);
+            osc2.start(t);
+
+            projectVoice = { osc1, osc2, filter, out };
+        }
+
+        function updateProjectHover(progress) {
+            if (!projectVoice) return;
+            projectProgress = progress;
+            const t = ctx.currentTime;
+            const baseFreq = 220 + progress * 220;
+            projectVoice.osc1.frequency.setTargetAtTime(baseFreq, t, 0.22);
+            projectVoice.osc2.frequency.setTargetAtTime(baseFreq * 1.006, t, 0.22);
+            projectVoice.filter.frequency.setTargetAtTime(400 + progress * 700, t, 0.25);
+            projectVoice.out.gain.setTargetAtTime(0.028 + progress * 0.032, t, 0.3);
+        }
+
+        function stopProjectHover() {
+            if (!projectVoice) return;
+            const t = ctx.currentTime;
+            const { osc1, osc2, out } = projectVoice;
+            out.gain.cancelScheduledValues(t);
+            out.gain.setValueAtTime(out.gain.value, t);
+            out.gain.linearRampToValueAtTime(0, t + 0.5);
+            osc1.stop(t + 0.9);
+            osc2.stop(t + 0.9);
+            projectVoice = null;
+            projectProgress = 0;
+        }
+
+        // ---------- Discovery resolve — soft two-note chime ----------
+        function playDiscoveryResolve() {
+            if (!ready || muted) return;
+            const t = ctx.currentTime;
+
+            const notes = [659.25, 987.77];   // E5, B5 — a fifth apart
+            notes.forEach((freq, i) => {
+                const startTime = t + i * 0.09;
+                const osc = ctx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(0, startTime);
+                g.gain.linearRampToValueAtTime(0.055, startTime + 0.06);
+                g.gain.setTargetAtTime(0, startTime + 0.35, 0.5);
+
+                osc.connect(g);
+                g.connect(uiBus);
+                g.connect(reverbSend);
+
+                osc.start(startTime);
+                osc.stop(startTime + 2.2);
+            });
+        }
+
+        // ---------- Focus click — soft filtered accent ----------
+        function playFocusClick() {
+            if (!ready || muted) return;
+            const t = ctx.currentTime;
+
+            const osc = ctx.createOscillator();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(360, t);
+            osc.frequency.exponentialRampToValueAtTime(120, t + 0.35);
+
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(3200, t);
+            filter.frequency.exponentialRampToValueAtTime(300, t + 0.40);
+            filter.Q.value = 3;
+
+            const g = ctx.createGain();
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(0.15, t + 0.008);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+
+            osc.connect(filter);
+            filter.connect(g);
+            g.connect(uiBus);
+            g.connect(reverbSend);
+            osc.start(t);
+            osc.stop(t + 0.60);
+
+            noiseTick(t, { duration: 0.012, freq: 4200, q: 3, gain: 0.000 });
+        }
+
+        // ---------- Topic click accent — soft, brief ----------
+        function playTopicClick(topic) {
+            if (!ready || muted) return;
+            const t = ctx.currentTime;
+            const config = TOPIC_VOICES[topic];
+            if (!config) return;
+
+            // A brief overtone above the hover pad — resolves the card
+            const osc = ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.value = config.freq2 * 2;
+
+            const g = ctx.createGain();
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(0.05, t + 0.01);
+            g.gain.setTargetAtTime(0, t + 0.15, 0.25);
+
+            osc.connect(g);
+            g.connect(uiBus);
+            g.connect(reverbSend);
+            osc.start(t);
+            osc.stop(t + 1.2);
+        }
+
+        // ---------- Archive complete: slow chord swell (unchanged) ----------
+        function playChordSwell() {
+            if (!ready || muted) return;
+            const t = ctx.currentTime;
+
+            const freqs = [196.00, 246.94, 294.66];
+            freqs.forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(0, t);
+                g.gain.linearRampToValueAtTime(0.09, t + 0.5 + i * 0.15);
+                g.gain.setTargetAtTime(0, t + 1.8 + i * 0.15, 0.9);
+
+                osc.connect(g);
+                g.connect(uiBus);
+                g.connect(reverbSend);
+
+                osc.start(t);
+                osc.stop(t + 5);
+            });
+        }
+
+        function setAmbientLevel(activity) {
+            if (!ready) return;
+            const target = AMBIENT_IDLE + activity * (AMBIENT_ACTIVE - AMBIENT_IDLE);
+            ambientGain.gain.setTargetAtTime(target, ctx.currentTime, AMBIENT_RAMP);
+        }
+
+        function setMuted(next) {
+            muted = next;
+            if (!ready) return;
+            const target = muted ? 0 : 0.78;
+            masterGain.gain.setTargetAtTime(target, ctx.currentTime, 0.15);
+            if (muted) {
+                stopTopicHover();
+                stopProjectHover();
+            }
+        }
+
+        function isMuted() { return muted; }
+        function isReady() { return ready; }
+
+        return {
+            init,
+            playWakeClick,
+            startTopicHover,
+            stopTopicHover,
+            playTopicClick,
+            startProjectHover,
+            updateProjectHover,
+            stopProjectHover,
+            playDiscoveryResolve,
+            playFocusClick,
+            playChordSwell,
+            setAmbientLevel,
+            setMuted,
+            isMuted,
+            isReady
+        };
+    })();
+
+
+    /* ---------- Mute toggle ---------- */
+    const muteToggle = document.getElementById('mute-toggle');
+
+    try {
+        if (localStorage.getItem('anmicvisual-muted') === '1') {
+            audio.setMuted(true);
+            muteToggle.classList.add('muted');
+            muteToggle.textContent = 'Sound Off';
+        }
+    } catch (e) { /* ignore */ }
+
+    muteToggle.addEventListener('click', () => {
+        const next = !audio.isMuted();
+        audio.setMuted(next);
+        muteToggle.classList.toggle('muted', next);
+        muteToggle.textContent = next ? 'Sound Off' : 'Sound On';
+        try { localStorage.setItem('anmicvisual-muted', next ? '1' : '0'); } catch (e) {}
+    });
+
+
+    /* ---------- Ambient activity tracker ---------- */
+    let audioActivity = 0;
+    function bumpAudioActivity(amount) {
+        audioActivity = Math.min(1, audioActivity + amount);
+    }
+
+
+    /* ==========================================================
+       2. THE ILLUMINATION + STAGE LIGHTS
+       ========================================================== */
+
+    const veil        = document.getElementById('veil');
+    const lightSeed   = document.getElementById('light-seed');
+    const lightHint   = document.getElementById('light-hint');
+    const stageLights = document.getElementById('stage-lights');
+
+    const FLICKER_KEYFRAMES = [
+        { t: 0.00, o: 0.98 },
+        { t: 0.10, o: 0.20 },
+        { t: 0.20, o: 0.72 },
+        { t: 0.32, o: 0.14 },
+        { t: 0.42, o: 0.58 },
+        { t: 0.55, o: 0.06 },
+        { t: 0.68, o: 0.28 },
+        { t: 0.82, o: 0.03 },
+        { t: 1.00, o: 0.00 }
+    ];
+
+    const FLICKER_DURATION_MS = 2600;
+    const FLICKER_JITTER      = 0.16;
+
+    let isAwake = false;
+
+    function lerpFlickerCurve(t) {
+        for (let i = 0; i < FLICKER_KEYFRAMES.length - 1; i++) {
+            const a = FLICKER_KEYFRAMES[i];
+            const b = FLICKER_KEYFRAMES[i + 1];
+            if (t >= a.t && t <= b.t) {
+                const span = b.t - a.t;
+                const local = span > 0 ? (t - a.t) / span : 0;
+                const ease = local * local * (3 - 2 * local);
+                return a.o + (b.o - a.o) * ease;
+            }
+        }
+        return FLICKER_KEYFRAMES[FLICKER_KEYFRAMES.length - 1].o;
+    }
+
+    function wakeUp() {
+        if (isAwake) return;
+        isAwake = true;
+
+        audio.init();
+        audio.playWakeClick();
+
+        muteToggle.classList.add('visible');
+
+        lightSeed.classList.add('gone');
+        lightHint.classList.add('gone');
+        setTimeout(() => {
+            if (lightSeed.parentNode) lightSeed.parentNode.removeChild(lightSeed);
+            if (lightHint.parentNode) lightHint.parentNode.removeChild(lightHint);
+        }, 500);
+
+        stageLights.classList.add('on');
+        setTimeout(() => stageLights.classList.add('settled'), 2700);
+
+        const start = performance.now();
+        function step(now) {
+            const t = Math.min(1, (now - start) / FLICKER_DURATION_MS);
+            const base = lerpFlickerCurve(t);
+            const jitter = (Math.random() - 0.5) * FLICKER_JITTER * (1 - t);
+            const opacity = Math.max(0, Math.min(1, base + jitter));
+            veil.style.opacity = opacity;
+
+            if (t < 1) {
+                requestAnimationFrame(step);
+            } else {
+                veil.style.opacity = '0';
+                veil.style.transition = 'opacity 0.4s ease';
+            }
+        }
+        requestAnimationFrame(step);
+    }
+
+    window.addEventListener('click', (e) => {
+        if (isAwake) return;
+        e.stopPropagation();
+        e.preventDefault();
+        wakeUp();
+    }, { capture: true });
+
+    window.addEventListener('touchstart', (e) => {
+        if (isAwake) return;
+        e.stopPropagation();
+        e.preventDefault();
+        wakeUp();
+    }, { capture: true, passive: false });
+
+    window.addEventListener('keydown', (e) => {
+        if (isAwake) return;
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
+            wakeUp();
+        }
+    });
+
+
+    /* ==========================================================
+       3. SCENE, CAMERA, RENDERER
        ========================================================== */
 
     const scene = new THREE.Scene();
@@ -400,42 +1525,90 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-    const liquidCanvas = document.querySelector('#liquid-overlay');
-    const liquidContext = liquidCanvas.getContext('2d');
-    const liquidPointer = { x: 0, y: 0, active: false };
-    const liquidParticles = Array.from({ length: 42 }, (_, i) => ({
-        x: 0, y: 0, vx: 0, vy: 0,
-        angle: (i / 42) * Math.PI * 2,
-        phase: Math.random() * Math.PI * 2,
-        size: 1.2 + Math.random() * 2.2,
-        initialized: false
-    }));
 
-    function resizeLiquidCanvas() {
-        const ratio = Math.min(window.devicePixelRatio || 1, 2);
-        liquidCanvas.width = Math.round(window.innerWidth * ratio);
-        liquidCanvas.height = Math.round(window.innerHeight * ratio);
-        liquidContext.setTransform(ratio, 0, 0, ratio, 0, 0);
-    }
+    /* ==========================================================
+       4. PROJECTS
+       ========================================================== */
 
-    resizeLiquidCanvas();
-
-
-    /* Add or edit each project's title and description here. */
     const projects = [
-        { title: 'Project 1', media: 'images/project1.jpg', description: 'In a world full of water and air we add elemnts of displace and distruction.', link: '' },
-        { title: 'Project 2', media: 'images/project2.jpg', description: 'Add a description of Project 2 here. Explain what you created, the tools you used, and the result.', link: '' },
-        { title: 'Project 3', media: 'images/project3.png', description: 'Add a description of Project 3 here. Explain what you created, the tools you used, and the result.', link: '' },
-        { title: 'Project 4', media: 'images/project4.jpg', description: 'Add a description of Project 4 here. Explain what you created, the tools you used, and the result.', link: '' },
-        { title: 'Project 5', media: 'images/project5.png', description: 'Add a description of Project 5 here. Explain what you created, the tools you used, and the result.', link: '' },
-        { title: 'Project 6', media: 'images/project6.png', description: 'Add a description of Project 6 here. Explain what you created, the tools you used, and the result.', link: '' },
-        { title: 'Project 7', media: 'images/project7.png', description: 'Add a description of Project 7 here. Explain what you created, the tools you used, and the result.', link: '' },
-        { title: 'Video Project 1', media: 'videos/project1.mp4', description: 'Add a description of this video project here. Explain what it shows and how you made it.', link: '' },
-        { title: 'Video Project 2', media: 'videos/project2.mov', description: 'Add a description of this video project here. Explain what it shows and how you made it.', link: '' },
-        { title: 'Video Project 3', media: 'videos/project3.mp4', description: 'Add a description of this video project here. Explain what it shows and how you made it.', link: '' },
-        { title: 'Video Project 4', media: 'videos/project4 .mp4', description: 'Add a description of this video project here. Explain what it shows and how you made it.', link: '' },
-        { title: 'Video Project 5', media: 'videos/project5.mp4', description: 'Add a description of this video project here. Explain what it shows and how you made it.', link: '' },
-        { title: 'Video Project 6', media: 'videos/project6.mp4', description: 'Add a description of this video project here. Explain what it shows and how you made it.', link: '' },
+        {
+            title: 'Project 1',
+            media: 'images/project1.jpg',
+            description: 'Stage visuals for [event], [venue], [year]. I designed and rendered the 3D world projected across three LED walls, synced to a live modular set. The piece moved between water and collapse — the visuals never sat still, they kept eroding and rebuilding in time with the music.',
+            link: ''
+        },
+        {
+            title: 'Project 2',
+            media: 'images/project2.jpg',
+            description: 'Add what this project was (club night, festival stage, installation), where it happened, what you specifically did, and one detail that makes it yours.',
+            link: ''
+        },
+        {
+            title: 'Project 3',
+            media: 'images/project3.png',
+            description: 'Add what this project was, where it happened, what you specifically did, and one detail that makes it yours.',
+            link: ''
+        },
+        {
+            title: 'Project 4',
+            media: 'images/project4.jpg',
+            description: 'Add what this project was, where it happened, what you specifically did, and one detail that makes it yours.',
+            link: ''
+        },
+        {
+            title: 'Project 5',
+            media: 'images/project5.png',
+            description: 'Add what this project was, where it happened, what you specifically did, and one detail that makes it yours.',
+            link: ''
+        },
+        {
+            title: 'Project 6',
+            media: 'images/project6.png',
+            description: 'Add what this project was, where it happened, what you specifically did, and one detail that makes it yours.',
+            link: ''
+        },
+        {
+            title: 'Project 7',
+            media: 'images/project7.png',
+            description: 'Add what this project was, where it happened, what you specifically did, and one detail that makes it yours.',
+            link: ''
+        },
+        {
+            title: 'Video Project 1',
+            media: 'videos/project1.mp4',
+            description: 'Add what this video project was, where it happened, what you specifically did, and one detail that makes it yours.',
+            link: ''
+        },
+        {
+            title: 'Video Project 2',
+            media: 'videos/project2.mov',
+            description: 'Add what this video project was, where it happened, what you specifically did, and one detail that makes it yours.',
+            link: ''
+        },
+        {
+            title: 'Video Project 3',
+            media: 'videos/project3.mp4',
+            description: 'Add what this video project was, where it happened, what you specifically did, and one detail that makes it yours.',
+            link: ''
+        },
+        {
+            title: 'Video Project 4',
+            media: 'videos/project4.mp4',
+            description: 'Add what this video project was, where it happened, what you specifically did, and one detail that makes it yours.',
+            link: ''
+        },
+        {
+            title: 'Video Project 5',
+            media: 'videos/project5.mp4',
+            description: 'Add what this video project was, where it happened, what you specifically did, and one detail that makes it yours.',
+            link: ''
+        },
+        {
+            title: 'Video Project 6',
+            media: 'videos/project6.mp4',
+            description: 'Add what this video project was, where it happened, what you specifically did, and one detail that makes it yours.',
+            link: ''
+        },
     ];
 
     const SPHERE_RADIUS = 35;
@@ -444,7 +1617,41 @@
 
 
     /* ==========================================================
-       3. MEDIA LOADER
+       5. DISCOVERY SYSTEM
+       ========================================================== */
+
+    const DWELL_MS   = 1100;
+    const DIM_ALPHA  = 0.20;
+
+    let dwellStart   = 0;
+    let dwellTarget  = null;
+    let dwellProgress = 0;
+    let discoveredCount = 0;
+    let celebrationShown = false;
+
+    const counterEl  = document.getElementById('discovery-counter');
+    const countEl    = document.getElementById('discovered-count');
+    const totalEl    = document.getElementById('discovered-total');
+    const fillEl     = document.getElementById('discovery-fill');
+    const celebrateEl = document.getElementById('discovery-celebration');
+
+    function updateDiscoveryCounter() {
+        countEl.textContent = discoveredCount;
+        fillEl.style.width = (discoveredCount / projects.length * 100) + '%';
+        if (discoveredCount === projects.length) {
+            counterEl.classList.add('complete');
+            if (!celebrationShown) {
+                celebrationShown = true;
+                celebrateEl.classList.add('visible');
+                setTimeout(() => celebrateEl.classList.remove('visible'), 3600);
+                audio.playChordSwell();
+            }
+        }
+    }
+
+
+    /* ==========================================================
+       6. MEDIA LOADER
        ========================================================== */
 
     const textureLoader = new THREE.TextureLoader();
@@ -461,7 +1668,6 @@
             video.loop = true;
             video.muted = true;
             video.playsInline = true;
-            video.crossOrigin = 'anonymous';
             video.preload = 'metadata';
             video.dataset.source = path;
             video.src = path;
@@ -498,7 +1704,7 @@
 
 
     /* ==========================================================
-       4. PULSATING BORDER TEXTURE
+       7. PULSATING BORDER TEXTURE
        ========================================================== */
 
     function makeBorderTexture() {
@@ -557,7 +1763,7 @@
             transparent: true,
             depthWrite: false,
             depthTest: false,
-            opacity: 1,
+            opacity: DIM_ALPHA,
         });
 
         const sprite = new THREE.Sprite(material);
@@ -565,20 +1771,22 @@
         sprite.scale.set(BASE_SIZE, BASE_SIZE, 1);
         sprite.renderOrder = 3;
 
-        sprite.userData.link          = project.link;
-        sprite.userData.baseScaleX    = BASE_SIZE;
-        sprite.userData.baseScaleY    = BASE_SIZE;
-        sprite.userData.segments      = [];
-        sprite.userData.glowFade      = 0;
-        sprite.userData.targetOpacity = 1;
-        sprite.userData.home          = sprite.position.clone();
-        sprite.userData.title         = project.title;
-        sprite.userData.description   = project.description;
+        sprite.userData.link           = project.link;
+        sprite.userData.baseScaleX     = BASE_SIZE;
+        sprite.userData.baseScaleY     = BASE_SIZE;
+        sprite.userData.segments       = [];
+        sprite.userData.glowFade       = 0;
+        sprite.userData.targetOpacity  = 1;
+        sprite.userData.home           = sprite.position.clone();
+        sprite.userData.title          = project.title;
+        sprite.userData.description    = project.description;
+        sprite.userData.discovered     = false;
+        sprite.userData.reveal         = 0;
+        sprite.userData.revealTarget   = 0;
 
         cloud.add(sprite);
         sprites.push(sprite);
 
-        /* ---------- pulsating border ---------- */
         const borderMat = new THREE.SpriteMaterial({
             map: BORDER_TEXTURE,
             transparent: true,
@@ -595,7 +1803,6 @@
         cloud.add(glow);
         glows.push({ glow, sprite });
 
-        /* ---------- load media ---------- */
         const texture = loadMedia(project.media, (tex, aspect) => {
             material.map = tex;
             material.needsUpdate = true;
@@ -619,9 +1826,12 @@
         material.needsUpdate = true;
     });
 
+    totalEl.textContent = projects.length;
+    updateDiscoveryCounter();
+
 
     /* ==========================================================
-       6. CONNECTING LINES
+       8. CONNECTING LINES
        ========================================================== */
 
     const NEIGHBORS = 2;
@@ -678,7 +1888,7 @@
     lines.renderOrder = 2;
     cloud.add(lines);
 
-    const BASE   = new THREE.Color(0.05, 0.05, 0.08);
+    const BASE   = new THREE.Color(0.03, 0.03, 0.05);
     const BRIGHT = new THREE.Color(0.776, 1.00, 0.00);
     const FADE   = new THREE.Color(0.18, 0.22, 0.02);
 
@@ -716,12 +1926,7 @@
 
 
     /* ==========================================================
-       7. FOCUS STATE
-       ----------------------------------------------------------
-       idle      → normal sphere, hover/drag active
-       focused   → one sprite flying to the left of the screen,
-                   everything else fading out, text panel open
-       returning → the sprite animating back home, panel closing
+       9. FOCUS STATE
        ========================================================== */
 
     let activeLayer     = 'topics';
@@ -774,33 +1979,64 @@
     focusBackdrop.renderOrder = 9;
 
     function computeFocusTargets(sprite) {
-        // Distance in front of the camera to place the focused image
         const distance = 40;
 
         const vFov          = camera.fov * Math.PI / 180;
         const visibleHeight = 2 * Math.tan(vFov / 2) * distance;
         const visibleWidth  = visibleHeight * camera.aspect;
 
-        const aspect = sprite.userData.baseScaleX / sprite.userData.baseScaleY;
-        const isVideo = Boolean(sprite.userData.video);
-        const h = isVideo
-            ? Math.min(visibleHeight, visibleWidth / aspect)
-            : Math.max(visibleHeight, visibleWidth / aspect);
-        const w = h * aspect;
-        const z = camera.position.z - distance;
+        const aspect   = sprite.userData.baseScaleX / sprite.userData.baseScaleY;
+        const isVideo  = Boolean(sprite.userData.video);
+        const isMobile = window.innerWidth <= 700;
 
-        focusTargetPos.set(0, 0, z);
+        let usableWidth, usableHeight, usableCenterX, usableCenterY;
+
+        if (isMobile) {
+            const panelPx   = Math.min(window.innerHeight * 0.48, 380);
+            const freeFracY = 1 - panelPx / window.innerHeight - 0.06;
+
+            usableWidth   = visibleWidth * 0.92;
+            usableHeight  = visibleHeight * freeFracY;
+            usableCenterX = 0;
+            usableCenterY = visibleHeight / 2 - usableHeight / 2;
+        } else {
+            const PANEL_FRACTION = 0.382;
+            const PANEL_BUFFER   = 0.04;
+
+            usableWidth   = visibleWidth * (1 - PANEL_FRACTION - PANEL_BUFFER);
+            usableHeight  = visibleHeight * 0.88;
+            usableCenterX = -visibleWidth / 2 + usableWidth / 2;
+            usableCenterY = 0;
+        }
+
+        let h = usableHeight;
+        let w = h * aspect;
+        if (w > usableWidth) {
+            w = usableWidth;
+            h = w / aspect;
+        }
+
+        const z = camera.position.z - distance;
+        focusTargetPos.set(usableCenterX, usableCenterY, z);
         focusTargetScale.set(w, h, 1);
 
         if (isVideo) {
-            const backdropHeight = Math.max(visibleHeight, visibleWidth / aspect);
+            const margin = 1.6;
             focusBackdrop.position.copy(focusTargetPos);
-            focusBackdrop.scale.set(backdropHeight * aspect, backdropHeight, 1);
+            focusBackdrop.scale.set(w * margin, h * margin, 1);
         }
     }
 
     function focusProject(sprite) {
         if (focusState !== 'idle') return;
+
+        if (!sprite.userData.discovered) {
+            sprite.userData.discovered = true;
+            sprite.userData.revealTarget = 1;
+            discoveredCount++;
+            updateDiscoveryCounter();
+        }
+
         layerBack.hidden = true;
 
         sprites.forEach((item) => {
@@ -810,9 +2046,11 @@
         focusedSprite = sprite;
         focusState    = 'focused';
 
+        audio.playFocusClick();
+        audio.stopProjectHover();
+
         if (sprite.userData.video) {
             const video = sprite.userData.video;
-            if (!video.hasAttribute('src')) video.src = video.dataset.source;
             video.loop = true;
             video.currentTime = 0;
             video.ontimeupdate = () => {
@@ -840,21 +2078,16 @@
             scene.add(focusBackdrop);
         }
 
-        // Move the sprite out of the rotating cloud so it can fly freely
         scene.attach(sprite);
         sprite.renderOrder = 10;
 
-        // Fade everything else out
         sprites.forEach(s => {
             s.userData.targetOpacity = (s === sprite) ? 1 : 0;
         });
         lineMaterial.userData = lineMaterial.userData || {};
         lineMaterial.userData.targetOpacity = 0;
 
-        // Open the panel with this project's text
         openTextPanel(sprite);
-
-        // Hide the hint
         document.getElementById('hint').classList.add('hidden');
     }
 
@@ -864,7 +2097,6 @@
         focusState = 'returning';
         scene.remove(focusBackdrop);
 
-        // Where the sprite should land: its home position in world space
         const homeWorld = focusedSprite.userData.home.clone();
         homeWorld.applyQuaternion(cloud.quaternion);
 
@@ -875,7 +2107,6 @@
             1
         );
 
-        // Fade everything back in
         sprites.forEach(s => { s.userData.targetOpacity = 1; });
         lineMaterial.userData.targetOpacity = 1;
 
@@ -885,7 +2116,7 @@
 
 
     /* ==========================================================
-       8. TEXT PANEL
+       10. TEXT PANEL + TOPIC PAGES
        ========================================================== */
 
     const textPanel   = document.getElementById('text-panel');
@@ -898,17 +2129,29 @@
     const TOPIC_PAGES = {
         contact: {
             title: 'Contact',
-            content: 'For project enquiries, collaborations, or questions, start a message and tell me what you have in mind.',
-            link: 'mailto:?subject=Anmicvisual%20enquiry',
-            linkText: 'Start an email'
+            content:
+                'Tell me roughly what you\'re planning — an event, a space, an idea you\'re not sure how to build yet. I\'ll help you figure out what\'s possible.\n\n' +
+                'I usually need 4–6 weeks of lead time. Shorter or longer is sometimes fine — just ask.\n\n' +
+                'Email: hello@anmicvisual.com\n' +
+                'Instagram: @anmicvisual\n' +
+                'Vimeo: vimeo.com/anmicvisual',
+            link: 'mailto:hello@anmicvisual.com?subject=Project%20enquiry',
+            linkText: 'Start a project'
         },
         upcoming: {
             title: 'Upcoming',
-            content: 'The next set of work is taking shape. New visual experiments and moving-image projects will appear here as they’re ready.'
+            content:
+                'Currently developing new live sets and a longer-form spatial installation.\n\n' +
+                'Booking now for the coming season, across NRW and beyond. Upcoming dates and pricing on request.',
+            link: 'mailto:hello@anmicvisual.com?subject=Availability%20enquiry',
+            linkText: 'Check availability'
         },
         about: {
             title: 'About',
-            content: 'Anmicvisual is an independent visual practice working across moving image, projection, generative visuals, and interactive experiences.'
+            content:
+                'Anmicvisual is a solo visual practice working across video, 3D, and light — based in NRW, Germany.\n\n' +
+                'The work is made for live spaces: clubs, festivals, stages. The screen is one part of it. The rest is the room — the lighting, the architecture, the sound, the people moving through it.\n\n' +
+                'I work alone, but almost every project is a collaboration. Musicians, lighting designers, promoters, and other visual artists. The best work happens when the visuals are built with the room and the music, not delivered to it.'
         }
     };
 
@@ -931,6 +2174,7 @@
         topicHome.hidden = true;
         cloud.visible = false;
         layerBack.hidden = false;
+        counterEl.classList.remove('visible');
         document.getElementById('hint').classList.add('hidden');
 
         textTitle.textContent = page.title;
@@ -949,17 +2193,36 @@
         cloud.visible = false;
         topicHome.hidden = false;
         layerBack.hidden = true;
+        counterEl.classList.remove('visible');
         document.getElementById('hint').classList.add('hidden');
     }
 
     document.querySelectorAll('.topic-choice').forEach((choice) => {
+        choice.addEventListener('mouseenter', () => {
+            audio.startTopicHover(choice.dataset.topic);
+            bumpAudioActivity(0.15);
+        });
+        choice.addEventListener('mouseleave', () => {
+            audio.stopTopicHover();
+        });
+        choice.addEventListener('focus', () => {
+            audio.startTopicHover(choice.dataset.topic);
+            bumpAudioActivity(0.15);
+        });
+        choice.addEventListener('blur', () => {
+            audio.stopTopicHover();
+        });
         choice.addEventListener('click', () => {
             const topic = choice.dataset.topic;
+            audio.playTopicClick(topic);
+            bumpAudioActivity(0.25);
+
             if (topic === 'projects') {
                 activeLayer = 'projects';
                 topicHome.hidden = true;
                 cloud.visible = true;
                 layerBack.hidden = false;
+                counterEl.classList.add('visible');
                 document.getElementById('hint').classList.remove('hidden');
                 return;
             }
@@ -990,7 +2253,7 @@
 
 
     /* ==========================================================
-       9. DRAG-TO-ROTATE
+       11. DRAG-TO-ROTATE
        ========================================================== */
 
     const targetQuat = new THREE.Quaternion();
@@ -1018,6 +2281,7 @@
         prevX = e.clientX; prevY = e.clientY;
         velX = velY = 0;
         canvas.classList.add('dragging');
+        bumpAudioActivity(0.15);
     });
 
     window.addEventListener('mouseup', () => {
@@ -1026,6 +2290,8 @@
     });
 
     window.addEventListener('mousemove', (e) => {
+        bumpAudioActivity(0.008);
+
         if (!isDragging) return;
         const dx = e.clientX - prevX;
         const dy = e.clientY - prevY;
@@ -1043,6 +2309,7 @@
         downX = t.clientX; downY = t.clientY;
         velX = velY = 0;
         canvas.classList.add('dragging');
+        bumpAudioActivity(0.15);
     }, { passive: true });
 
     window.addEventListener('touchend', () => {
@@ -1051,6 +2318,8 @@
     });
 
     window.addEventListener('touchmove', (e) => {
+        bumpAudioActivity(0.008);
+
         if (!isDragging) return;
         const t = e.touches[0];
         const dx = t.clientX - prevX;
@@ -1063,7 +2332,7 @@
 
 
     /* ==========================================================
-       10. ZOOM
+       12. ZOOM
        ========================================================== */
 
     let targetZoomZ = 0;
@@ -1074,108 +2343,32 @@
         if (activeLayer !== 'projects' || focusState !== 'idle') return;
         targetZoomZ += e.deltaY * 0.08;
         targetZoomZ = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, targetZoomZ));
+        bumpAudioActivity(0.05);
     }, { passive: true });
 
 
     /* ==========================================================
-       11. HOVER / CLICK
+       13. HOVER / CLICK
        ========================================================== */
 
     const raycaster = new THREE.Raycaster();
     const pointer   = new THREE.Vector2(0, 0);
     let hoveredSprite = null;
+    let lastHoveredSprite = null;
 
     window.addEventListener('mousemove', (e) => {
         pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
         pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
-        liquidPointer.x = e.clientX;
-        liquidPointer.y = e.clientY;
-        liquidPointer.active = true;
     });
 
-    window.addEventListener('blur', () => { liquidPointer.active = false; });
-
-    function getSpriteScreenBounds(sprite) {
-        scene.updateMatrixWorld();
-        camera.updateMatrixWorld();
-        const worldPosition = sprite.getWorldPosition(new THREE.Vector3());
-        const viewPosition = worldPosition.clone().applyMatrix4(camera.matrixWorldInverse);
-        const depth = -viewPosition.z;
-        if (depth <= 0) return null;
-
-        const projected = worldPosition.project(camera);
-        const height = sprite.scale.y * window.innerHeight /
-            (2 * Math.tan(camera.fov * Math.PI / 360) * depth);
-        return {
-            x: (projected.x * 0.5 + 0.5) * window.innerWidth,
-            y: (-projected.y * 0.5 + 0.5) * window.innerHeight,
-            width: height * (sprite.scale.x / sprite.scale.y),
-            height
-        };
-    }
-
-    function drawLiquidPool(x, y, radius, opacity) {
-        const gradient = liquidContext.createRadialGradient(x, y, 0, x, y, radius);
-        gradient.addColorStop(0, 'rgba(198, 255, 0, ' + opacity + ')');
-        gradient.addColorStop(0.42, 'rgba(150, 210, 0, ' + (opacity * 0.42) + ')');
-        gradient.addColorStop(1, 'rgba(110, 160, 0, 0)');
-        liquidContext.fillStyle = gradient;
-        liquidContext.beginPath();
-        liquidContext.arc(x, y, radius, 0, Math.PI * 2);
-        liquidContext.fill();
-    }
-
-    function updateLiquid(elapsed) {
-        liquidContext.clearRect(0, 0, window.innerWidth, window.innerHeight);
-        if (activeLayer !== 'projects' || !liquidPointer.active || focusState !== 'idle') return;
-
-        const target = hoveredSprite ? getSpriteScreenBounds(hoveredSprite) : null;
-        const centerX = target ? target.x : liquidPointer.x;
-        const centerY = target ? target.y : liquidPointer.y;
-        const radiusX = target ? target.width * 0.57 + 14 : 18;
-        const radiusY = target ? target.height * 0.57 + 14 : 18;
-
-        liquidContext.globalCompositeOperation = 'lighter';
-        drawLiquidPool(liquidPointer.x, liquidPointer.y, target ? 42 : 66, target ? 0.08 : 0.2);
-        if (target) drawLiquidPool(centerX, centerY, Math.max(radiusX, radiusY) + 34, 0.12);
-
-        if (target) {
-            liquidContext.beginPath();
-            liquidContext.moveTo(liquidPointer.x, liquidPointer.y);
-            liquidContext.lineTo(centerX, centerY);
-            liquidContext.strokeStyle = 'rgba(198, 255, 0, 0.18)';
-            liquidContext.lineWidth = 1;
-            liquidContext.stroke();
+    window.addEventListener('blur', () => {
+        if (dwellTarget && !dwellTarget.userData.discovered) {
+            dwellTarget.userData.revealTarget = 0;
         }
-
-        liquidParticles.forEach((particle) => {
-            const angle = particle.angle + elapsed * 0.22 + Math.sin(elapsed + particle.phase) * 0.12;
-            const spread = target ? 1 : 1 + Math.sin(elapsed * 1.8 + particle.phase) * 0.45;
-            const targetX = centerX + Math.cos(angle) * radiusX * spread;
-            const targetY = centerY + Math.sin(angle) * radiusY * spread;
-
-            if (!particle.initialized) {
-                particle.x = targetX;
-                particle.y = targetY;
-                particle.initialized = true;
-            }
-            particle.vx += (targetX - particle.x) * 0.025;
-            particle.vy += (targetY - particle.y) * 0.025;
-            particle.vx *= 0.84;
-            particle.vy *= 0.84;
-            particle.x += particle.vx;
-            particle.y += particle.vy;
-
-            liquidContext.beginPath();
-            liquidContext.fillStyle = 'rgba(220, 255, 125, 0.82)';
-            liquidContext.shadowColor = 'rgba(198, 255, 0, 0.85)';
-            liquidContext.shadowBlur = 12;
-            liquidContext.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-            liquidContext.fill();
-        });
-        liquidContext.shadowBlur = 0;
-        liquidContext.globalCompositeOperation = 'source-over';
-    }
+        dwellTarget = null;
+        dwellProgress = 0;
+        audio.stopProjectHover();
+    });
 
     function updateHover() {
         if (activeLayer !== 'projects' || focusState !== 'idle' || isDragging) {
@@ -1188,13 +2381,56 @@
         hoveredSprite = hits.length > 0 ? hits[0].object : null;
     }
 
+    function updateDwell(now) {
+        if (hoveredSprite !== lastHoveredSprite) {
+            if (dwellTarget && !dwellTarget.userData.discovered) {
+                dwellTarget.userData.revealTarget = 0;
+            }
+            dwellTarget = null;
+            dwellProgress = 0;
+
+            audio.stopProjectHover();
+
+            if (hoveredSprite && !hoveredSprite.userData.discovered) {
+                dwellTarget = hoveredSprite;
+                dwellStart = now;
+                audio.startProjectHover();
+                bumpAudioActivity(0.2);
+            }
+            lastHoveredSprite = hoveredSprite;
+        }
+
+        if (dwellTarget && !dwellTarget.userData.discovered) {
+            dwellProgress = Math.min(1, (now - dwellStart) / DWELL_MS);
+            dwellTarget.userData.revealTarget = dwellProgress;
+
+            audio.updateProjectHover(dwellProgress);
+
+            if (dwellProgress >= 1) {
+                dwellTarget.userData.discovered = true;
+                dwellTarget.userData.revealTarget = 1;
+                discoveredCount++;
+                updateDiscoveryCounter();
+                audio.playDiscoveryResolve();
+                audio.stopProjectHover();
+                bumpAudioActivity(0.25);
+            }
+        }
+    }
+
     function updateCursor() {
         if (activeLayer !== 'projects' || focusState !== 'idle') {
             canvas.style.cursor = 'default';
             return;
         }
         if (isDragging) return;
-        canvas.style.cursor = hoveredSprite ? 'pointer' : 'grab';
+        if (hoveredSprite && !hoveredSprite.userData.discovered) {
+            canvas.style.cursor = 'crosshair';
+        } else if (hoveredSprite) {
+            canvas.style.cursor = 'pointer';
+        } else {
+            canvas.style.cursor = 'grab';
+        }
     }
 
     canvas.addEventListener('mousedown', (e) => { downX = e.clientX; downY = e.clientY; });
@@ -1213,21 +2449,23 @@
         scene.updateMatrixWorld();
         raycaster.setFromCamera(pointer, camera);
         const hits = raycaster.intersectObjects(sprites);
-        if (hits.length > 0) focusProject(hits[0].object);
+        if (hits.length > 0) {
+            focusProject(hits[0].object);
+            bumpAudioActivity(0.3);
+        }
     });
 
 
     /* ==========================================================
-       12. RESIZE
+       14. RESIZE
        ========================================================== */
 
     window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
-        resizeLiquidCanvas();
+        resizeFeedbackCanvases();
 
-        // Recompute focus target if a sprite is currently focused
         if (focusState === 'focused' && focusedSprite) {
             computeFocusTargets(focusedSprite);
         }
@@ -1235,20 +2473,23 @@
 
 
     /* ==========================================================
-       13. ANIMATION LOOP
+       15. ANIMATION LOOP
        ========================================================== */
 
     const timer = new THREE.Timer();
     timer.connect(document);
-    let lastHovered = null;
 
     function animate() {
         requestAnimationFrame(animate);
 
         timer.update();
         const elapsed = timer.getElapsed();
+        const now = performance.now();
 
-        /* ---- a) MOMENTUM + ROTATION (only while idle) ---- */
+        audioActivity *= 0.994;
+        if (audioActivity < 0.001) audioActivity = 0;
+        audio.setAmbientLevel(audioActivity);
+
         if (focusState === 'idle') {
             if (!isDragging && (velX !== 0 || velY !== 0)) {
                 const qx = new THREE.Quaternion().setFromAxisAngle(AXIS_X, velY);
@@ -1267,10 +2508,8 @@
             }
         }
 
-        /* ---- b) ZOOM ---- */
         camera.position.z += (targetZoomZ - camera.position.z) * 0.08;
 
-        /* ---- c) FOCUS ANIMATION ---- */
         if (focusState === 'focused' && focusedSprite) {
             focusedSprite.position.lerp(focusTargetPos, 0.09);
             focusedSprite.scale.lerp(focusTargetScale, 0.09);
@@ -1282,7 +2521,6 @@
             focusedSprite.scale.lerp(returnTargetScale, 0.11);
 
             if (focusedSprite.position.distanceTo(returnTargetPos) < 0.6) {
-                // Snap the rest of the way and give it back to the cloud
                 cloud.attach(focusedSprite);
                 focusedSprite.position.copy(focusedSprite.userData.home);
                 focusedSprite.scale.set(
@@ -1297,15 +2535,12 @@
             }
         }
 
-        /* ---- d) HOVER ---- */
         updateHover();
+        updateDwell(now);
         updateCursor();
-        updateLiquid(elapsed);
 
-        /* ---- e) LINE COLOURS ---- */
-        if (hoveredSprite !== lastHovered) {
+        if (hoveredSprite !== lastHoveredSprite) {
             updateLineTargets();
-            lastHovered = hoveredSprite;
         }
         let colourDirty = false;
         for (let i = 0; i < colorArray.length; i++) {
@@ -1317,18 +2552,24 @@
         }
         if (colourDirty) lineGeometry.attributes.color.needsUpdate = true;
 
-        /* ---- f) SPRITE OPACITY FADE (focus / unfocus) ---- */
-        sprites.forEach(s => {
-            s.material.opacity += (s.userData.targetOpacity - s.material.opacity) * 0.1;
+        sprites.forEach((s, i) => {
+            s.userData.reveal += (s.userData.revealTarget - s.userData.reveal) * 0.11;
+
+            const breath = s.userData.discovered
+                ? 0
+                : Math.sin(elapsed * 1.4 + i * 0.7) * 0.04;
+
+            const visibility = s.userData.targetOpacity;
+            const revealAlpha = DIM_ALPHA + (1 - DIM_ALPHA) * s.userData.reveal + breath * (1 - s.userData.reveal);
+            const targetAlpha = visibility * revealAlpha;
+            s.material.opacity += (targetAlpha - s.material.opacity) * 0.1;
         });
 
-        /* ---- g) LINE OPACITY FADE ---- */
         if (lineMaterial.userData && lineMaterial.userData.targetOpacity !== undefined) {
             lineMaterial.opacity +=
                 (lineMaterial.userData.targetOpacity - lineMaterial.opacity) * 0.1;
         }
 
-        /* ---- h) HOVER SCALE (only while idle) ---- */
         if (focusState === 'idle') {
             sprites.forEach((sprite) => {
                 const isHovered = sprite === hoveredSprite;
@@ -1343,7 +2584,6 @@
             });
         }
 
-        /* ---- i) PULSATING BORDER ---- */
         const pulse = 0.55 + Math.sin(elapsed * 4.5) * 0.45;
 
         glows.forEach(({ glow, sprite }) => {
@@ -1354,7 +2594,12 @@
                 1
             );
 
-            const targetFade = (sprite === hoveredSprite && focusState === 'idle') ? 1 : 0;
+            const targetFade = (
+                sprite === hoveredSprite &&
+                focusState === 'idle' &&
+                sprite.userData.discovered
+            ) ? 1 : 0;
+
             sprite.userData.glowFade +=
                 (targetFade - sprite.userData.glowFade) * 0.15;
 
