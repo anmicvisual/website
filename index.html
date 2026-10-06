@@ -487,6 +487,18 @@
             transform: translate(0, -50%);
             pointer-events: auto;
         }
+        #text-image {
+            display: block;
+            width: 100%;
+            max-height: 300px;
+            object-fit: cover;
+            border: 1px solid rgba(198, 255, 0, 0.2);
+            margin: 0 0 22px;
+            background: rgba(255, 255, 255, 0.03);
+        }
+        #text-image[hidden] {
+            display: none;
+        }
         #text-panel::-webkit-scrollbar { width: 6px; }
         #text-panel::-webkit-scrollbar-thumb {
             background: rgba(198, 255, 0, 0.32);
@@ -696,6 +708,7 @@
         <button id="close-btn" aria-label="Close">×</button>
         <h1 id="text-title"></h1>
         <div id="text-underline"></div>
+        <img id="text-image" alt="" hidden>
         <div id="text-content"></div>
         <a id="text-link" href="#" target="_blank">Open project →</a>
     </div>
@@ -1533,81 +1546,74 @@
     const projects = [
         {
             title: 'Project 1',
-            media: 'images/project1.jpg',
-            textFile: 'texts/project1.txt',
-            description: 'Stage visuals for [event], [venue], [year]. I designed and rendered the 3D world projected across three LED walls, synced to a live modular set. The piece moved between water and collapse — the visuals never sat still, they kept eroding and rebuilding in time with the music.',
+            media: 'images/project2.jpg',
+            description: 'A visual study developed around atmosphere, motion, and material tension. Built to sit in a room as a spatial event rather than a flat screen composition.',
             link: ''
         },
         {
             title: 'Project 2',
-            media: 'images/project2.jpg',
-            description: 'Add what this project was (club night, festival stage, installation), where it happened, what you specifically did, and one detail that makes it yours.',
+            media: 'images/project2.1.jpg',
+            description: 'A stage-based visual exploration using contrast, rhythm, and architectural framing to shape the energy of a live performance.',
             link: ''
         },
         {
             title: 'Project 3',
-            media: 'images/project3.png',
-            description: 'Add what this project was, where it happened, what you specifically did, and one detail that makes it yours.',
+            media: 'images/project2.2.jpg',
+            description: 'A high-contrast visual sequence designed for live movement, mapping sound into light and texture in real time.',
             link: ''
         },
         {
             title: 'Project 4',
-            media: 'images/project4.jpg',
-            description: 'Add what this project was, where it happened, what you specifically did, and one detail that makes it yours.',
+            media: 'images/project3.png',
+            description: 'A darker, denser visual language built around depth, edge, and motion blur — shaped to feel immersive and physically present.',
             link: ''
         },
         {
             title: 'Project 5',
-            media: 'images/project5.png',
-            description: 'Add what this project was, where it happened, what you specifically did, and one detail that makes it yours.',
+            media: 'images/project4.jpg',
+            description: 'A room-focused visual installation that treats light as structure, using scale, glow, and repetition to create an evolving sense of space.',
             link: ''
         },
         {
             title: 'Project 6',
-            media: 'images/project6.png',
-            description: 'Add what this project was, where it happened, what you specifically did, and one detail that makes it yours.',
-            link: ''
-        },
-        {
-            title: 'Project 7',
-            media: 'images/project7.png',
-            description: 'Add what this project was, where it happened, what you specifically did, and one detail that makes it yours.',
+            media: 'images/project5.png',
+            description: 'A more minimal direction focused on pacing and silence — allowing the geometry, tone, and motion to carry the whole composition.',
             link: ''
         },
         {
             title: 'Video Project 1',
             media: 'videos/project1.mp4',
-            description: 'Add what this video project was, where it happened, what you specifically did, and one detail that makes it yours.',
+            description: 'A motion-led visual set developed for a live performance context, with a strong focus on layered movement and atmosphere.',
             link: ''
         },
         {
             title: 'Video Project 2',
             media: 'videos/project2.mp4',
-            description: 'Add what this video project was, where it happened, what you specifically did, and one detail that makes it yours.',
+            description: 'A time-based visual narrative designed to shift between tension and release, shaped for a live room and responsive sound environment.',
             link: ''
         },
         {
             title: 'Video Project 3',
-            media: 'videos/project8.mp4',
-            description: 'Add what this video project was, where it happened, what you specifically did, and one detail that makes it yours.',
+            media: 'videos/project4.mp4',
+            description: 'A study in light and flow, using movement and repetition to build an immersive, constantly evolving visual field.',
             link: ''
         },
         {
             title: 'Video Project 4',
-            media: 'videos/project4.mp4',
-            description: 'Add what this video project was, where it happened, what you specifically did, and one detail that makes it yours.',
+            media: 'videos/project5.mp4',
+            description: 'A live visual approach built around spatial depth, flicker, and structure — designed to feel physical and responsive in the room.',
             link: ''
         },
         {
             title: 'Video Project 5',
-            media: 'videos/project5.mp4',
-            description: 'Add what this video project was, where it happened, what you specifically did, and one detail that makes it yours.',
+            media: 'videos/project7.mp4',
+            description: 'A more sculptural motion study exploring form, distortion, and rhythm within a restrained but intense visual palette.',
             link: ''
         },
         {
             title: 'Video Project 6',
-            media: 'videos/project7.mp4',
-            description: 'Add what this video project was, where it happened, what you specifically did, and one detail that makes it yours.',
+            media: 'videos/project8.mp4',
+            description: 'A live-space visual piece built to interact with the architecture of the room, balancing clarity, texture, and energy.',
             link: ''
         },
     ];
@@ -2142,6 +2148,7 @@
     const textTitle   = document.getElementById('text-title');
     const textContent = document.getElementById('text-content');
     const textLink    = document.getElementById('text-link');
+    const textImage   = document.getElementById('text-image');
     const topicHome   = document.getElementById('topic-home');
     const layerBack   = document.getElementById('layer-back');
 
@@ -2170,11 +2177,22 @@
             content:
                 'Anmicvisual is a solo visual practice working across video, 3D, and light — based in NRW, Germany.\n\n' +
                 'The work is made for live spaces: clubs, festivals, stages. The screen is one part of it. The rest is the room — the lighting, the architecture, the sound, the people moving through it.\n\n' +
-                'I work alone, but almost every project is a collaboration. Musicians, lighting designers, promoters, and other visual artists. The best work happens when the visuals are built with the room and the music, not delivered to it.'
+                'I work alone, but almost every project is a collaboration. Musicians, lighting designers, promoters, and other visual artists. The best work happens when the visuals are built with the room and the music, not delivered to it.',
+            image: 'images/About-image.jpg'
         }
     };
 
+    function resetTextPanelState() {
+        textImage.hidden = true;
+        textImage.removeAttribute('src');
+        textImage.alt = '';
+        textLink.hidden = true;
+        textLink.removeAttribute('href');
+        textContent.classList.remove('loaded');
+    }
+
     function openTextPanel(sprite) {
+        resetTextPanelState();
         textTitle.textContent   = sprite.userData.title;
         textContent.textContent = sprite.userData.description;
         textContent.classList.add('loaded');
@@ -2189,6 +2207,7 @@
         const page = TOPIC_PAGES[topic];
         if (!page) return;
 
+        resetTextPanelState();
         activeLayer = 'topic-detail';
         topicHome.hidden = true;
         cloud.visible = false;
@@ -2198,6 +2217,11 @@
 
         textTitle.textContent = page.title;
         textContent.textContent = page.content;
+        if (page.image) {
+            textImage.src = page.image;
+            textImage.alt = page.title;
+            textImage.hidden = false;
+        }
         textContent.classList.add('loaded');
         textLink.hidden = !page.link;
         textLink.textContent = page.linkText || '';
@@ -2253,7 +2277,7 @@
 
     function closeTextPanel() {
         textPanel.classList.remove('open');
-        textContent.classList.remove('loaded');
+        resetTextPanelState();
     }
 
     document.getElementById('close-btn').addEventListener('click', () => {
