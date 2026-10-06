@@ -1534,6 +1534,7 @@
         {
             title: 'Project 1',
             media: 'images/project1.jpg',
+            textFile: 'texts/project1.txt',
             description: 'Stage visuals for [event], [venue], [year]. I designed and rendered the 3D world projected across three LED walls, synced to a live modular set. The piece moved between water and collapse — the visuals never sat still, they kept eroding and rebuilding in time with the music.',
             link: ''
         },
@@ -1581,13 +1582,13 @@
         },
         {
             title: 'Video Project 2',
-            media: 'videos/project2.mov',
+            media: 'videos/project2.mp4',
             description: 'Add what this video project was, where it happened, what you specifically did, and one detail that makes it yours.',
             link: ''
         },
         {
             title: 'Video Project 3',
-            media: 'videos/project3.mp4',
+            media: 'videos/project8.mp4',
             description: 'Add what this video project was, where it happened, what you specifically did, and one detail that makes it yours.',
             link: ''
         },
@@ -1605,11 +1606,29 @@
         },
         {
             title: 'Video Project 6',
-            media: 'videos/project6.mp4',
+            media: 'videos/project7.mp4',
             description: 'Add what this video project was, where it happened, what you specifically did, and one detail that makes it yours.',
             link: ''
         },
     ];
+
+    async function hydrateProjectDescriptions() {
+        for (const project of projects) {
+            if (!project.textFile) continue;
+
+            try {
+                const response = await fetch(project.textFile, { cache: 'no-store' });
+                if (!response.ok) continue;
+
+                const text = (await response.text()).trim();
+                if (text) project.description = text;
+            } catch (error) {
+                console.warn(`Could not load text for ${project.title}:`, error);
+            }
+        }
+    }
+
+    hydrateProjectDescriptions();
 
     const SPHERE_RADIUS = 35;
     const BASE_SIZE     = 12;
